@@ -12,6 +12,8 @@ export type Push = {
   taskId?: string;
   /** Stays on screen until acted on. */
   sticky?: boolean;
+  /** A test the owner asked for: plays the notification sound even in quiet hours. */
+  test?: boolean;
 };
 
 const devices = () => db().collection('devices');
@@ -39,7 +41,7 @@ export async function pushToAll(push: Push): Promise<{ sent: number; failed: num
   if (snap.empty) return { sent: 0, failed: 0 };
 
   // In quiet hours notifications still arrive, but without sound or vibration, and never stick.
-  const quiet = isQuiet(Date.now());
+  const quiet = !push.test && isQuiet(Date.now());
   const data: Record<string, string> = {
     title: push.title,
     body: push.body,

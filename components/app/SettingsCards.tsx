@@ -57,8 +57,13 @@ export function NotificationsCard({ devices }: { devices: number }) {
 
   const test = async () => {
     setBusy(true);
-    const { sent } = await sendTestAction();
-    setNote(sent ? `Sent to ${sent} ${sent === 1 ? 'device' : 'devices'}. It should arrive in a few seconds.` : 'No devices have notifications on yet.');
+    const { sent, quietHours } = await sendTestAction();
+    setNote(
+      !sent
+        ? 'No devices have notifications on yet.'
+        : `Sent to ${sent} ${sent === 1 ? 'device' : 'devices'}. It arrives in a few seconds with your notification sound, or just a buzz if your phone is on vibrate.` +
+            (quietHours ? ' Real reminders arrive silently until 8 AM.' : ''),
+    );
     setBusy(false);
   };
 

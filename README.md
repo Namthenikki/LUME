@@ -26,7 +26,7 @@ Android app ──(every 15 min + on launch)──▶ /api/alarms ──▶ exac
   are sent as one notification. From 6h on they stay on screen until you act.
 - **Alarms** (`android/`): the Android app fetches the alarm schedule and sets exact alarm-clock alarms
   for 30 and 10 minutes before each deadline. When one goes off it rings with the phone's alarm sound
-  (on the alarm volume, so even in silent mode), repeating until you tap **Mark done** or **Snooze 10 min**.
+  (or only vibrates, with the phone on silent), repeating until you tap **Mark done** or **Snooze 10 min**.
   On a locked phone it opens a full-screen alarm. Before ringing it checks the task is still pending.
 - **Dashboard** (`app/dashboard`): Home, Reminders, Done and Settings. Phone-first, light by default,
   with an optional dark theme.
@@ -118,6 +118,10 @@ git commit -m "Android app for https://your-app.vercel.app" && git push
 
 That builds a signed APK for that address, puts it at `/downloads/lume.apk` (Settings offers it), and
 publishes `/.well-known/assetlinks.json`, which lets Android open the site with no browser bar.
+
+**Updates:** the app reports its version when it opens. Once a newer APK is deployed, Home and
+Settings inside the app show **Install update**, which downloads it and hands it to Android's
+installer (the first time, Android asks you to allow Lume to install apps).
 
 It needs JDK 17+, the Android SDK and Gradle 9. The script defaults to the paths on the build PC; set
 `JAVA_HOME`, `GRADLE` and `GRADLE_USER_HOME` to use others.

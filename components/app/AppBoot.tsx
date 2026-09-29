@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useSyncExternalStore } from 'react';
 import { pairAlarmDeviceAction } from '@/app/dashboard/actions';
+import { rememberAppVersion } from './install';
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -61,14 +62,17 @@ export function AppBoot() {
     };
   }, [router]);
 
-  // The Android app opens Lume with ?lume_device=<token> until it's paired; approve it and tidy the URL.
+  // The Android app opens Lume with ?lume_app=<version>, plus ?lume_device=<token> until it's paired:
+  // remember the version, approve the phone, and tidy the URL.
   useEffect(() => {
     const url = new URL(location.href);
     const token = url.searchParams.get('lume_device');
-    if (!token) return;
+    if (!token && !url.searchParams.has('lume_app')) return;
+    rememberAppVersion();
     url.searchParams.delete('lume_device');
+    url.searchParams.delete('lume_app');
     history.replaceState(null, '', url.pathname + url.search + url.hash);
-    pairAlarmDeviceAction(token).catch(() => {});
+    if (token) pairAlarmDeviceAction(token).catch(() => {});
   }, []);
 
   return null;

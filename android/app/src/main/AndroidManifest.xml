@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- "Install update": hands the new APK from the site to Android's installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -134,7 +136,14 @@
             android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- lume://test-alarm and lume://sync, opened from buttons in the web app's Settings -->
+        <activity
+            android:name=".UpdateActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:theme="@style/Lume.Alarm" />
+
+        <!-- lume://test-alarm, lume://sync and lume://update, opened from buttons in the web app -->
         <activity
             android:name=".BridgeActivity"
             android:excludeFromRecents="true"
@@ -150,6 +159,9 @@
                     android:scheme="lume" />
                 <data
                     android:host="sync"
+                    android:scheme="lume" />
+                <data
+                    android:host="update"
                     android:scheme="lume" />
             </intent-filter>
         </activity>

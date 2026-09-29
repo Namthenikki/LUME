@@ -2,41 +2,56 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
+import androidRelease from '@/lib/android-release.json';
 import { Tile } from '../landing/widgets';
 import { promptInstall, useInstallPrompt } from './AppBoot';
-import { APK_URL, useDevice } from './install';
+import { APK_URL, updateLink, useDevice } from './install';
 
 const DISMISSED_KEY = 'lume:get-app-dismissed';
+/** Holds the version whose update was dismissed, so the next version asks again. */
+const UPDATE_DISMISSED_KEY = 'lume:update-dismissed';
+const LATEST = String(androidRelease.versionCode);
 
 /**
- * Home's install nudge. On an Android phone: the Lume app (with alarms). On a computer: install the
- * web app, when the browser offers it. Hidden inside the app, once installed, or after dismissing.
+ * Home's install nudge. Inside an out-of-date Lume app: install the update. On an Android phone: the
+ * Lume app (with alarms). On a computer: install the web app, when the browser offers it. Hidden
+ * once installed, or after dismissing.
  */
 export function GetAppCard({ apkReady }: { apkReady: boolean }) {
   const device = useDevice();
   const installPrompt = useInstallPrompt();
-  const [dismissed, setDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState({ app: true, update: true });
 
   useEffect(() => {
     try {
-      setDismissed(localStorage.getItem(DISMISSED_KEY) === '1');
+      setDismissed({ app: localStorage.getItem(DISMISSED_KEY) === '1', update: localStorage.getItem(UPDATE_DISMISSED_KEY) === LATEST });
     } catch {
-      setDismissed(false);
+      setDismissed({ app: false, update: false });
     }
   }, []);
 
+  const mode = !device.ready
+    ? null
+    : device.update
+      ? 'update'
+      : device.inAndroidApp || device.standalone
+        ? null
+        : device.android && apkReady
+          ? 'android'
+          : !device.android && installPrompt
+            ? 'web'
+            : null;
+  const show = mode !== null && !(mode === 'update' ? dismissed.update : dismissed.app);
+
   const dismiss = () => {
-    setDismissed(true);
+    const update = mode === 'update';
+    setDismissed((d) => (update ? { ...d, update: true } : { ...d, app: true }));
     try {
-      localStorage.setItem(DISMISSED_KEY, '1');
+      localStorage.setItem(update ? UPDATE_DISMISSED_KEY : DISMISSED_KEY, update ? LATEST : '1');
     } catch {
       // private mode: hidden for this visit only
     }
   };
-
-  const offerAndroid = device.android && apkReady;
-  const offerWebApp = !device.android && !!installPrompt;
-  const show = device.ready && !dismissed && !device.inAndroidApp && !device.standalone && (offerAndroid || offerWebApp);
 
   return (
     <AnimatePresence>
@@ -57,14 +72,26 @@ export function GetAppCard({ apkReady }: { apkReady: boolean }) {
               </svg>
             </Tile>
             <div className="min-w-0 flex-1 basis-[calc(100%-64px)] pr-8 sm:basis-auto sm:pr-0">
-              <p className="font-semibold">{offerAndroid ? 'Get the Lume app' : 'Install Lume'}</p>
+              <p className="font-semibold">{mode === 'update' ? 'Update Lume' : mode === 'android' ? 'Get the Lume app' : 'Install Lume'}</p>
               <p className="text-[14px] leading-snug text-ink-2">
-                {offerAndroid
-                  ? 'It rings like an alarm 30 and 10 minutes before a deadline, even on silent.'
-                  : 'Open it from your dock or desktop like a regular app.'}
+                {mode === 'update'
+                  ? device.update === 'in-app'
+                    ? 'A new version is ready. It installs over this one, and your alarms stay set.'
+                    : 'A new version is ready. This one can’t update itself: download it and open the file to install it over this one.'
+                  : mode === 'android'
+                    ? 'It rings like an alarm 30 and 10 minutes before a deadline, until you mark it done.'
+                    : 'Open it from your dock or desktop like a regular app.'}
               </p>
             </div>
-            {offerAndroid ? (
+            {mode === 'update' && device.update ? (
+              <motion.a
+                {...updateLink(device.update)}
+                whileTap={{ scale: 0.96 }}
+                className="flex h-11 w-full shrink-0 items-center justify-center rounded-[12px] bg-blue px-5 text-[14px] font-semibold text-white shadow-[0_10px_24px_-10px_rgb(29_110_245/0.8)] sm:w-auto"
+              >
+                {device.update === 'in-app' ? 'Install update' : 'Download update'}
+              </motion.a>
+            ) : mode === 'android' ? (
               <motion.a
                 href={APK_URL}
                 download

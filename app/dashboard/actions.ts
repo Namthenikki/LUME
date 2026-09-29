@@ -7,6 +7,7 @@ import { isDeviceToken, pairAlarmDevice, unpairAllAlarmDevices } from '@/lib/ala
 import { OWNER_COOKIE } from '@/lib/auth';
 import { requireOwner } from '@/lib/owner';
 import { pushToAll, removeDevice, saveDevice } from '@/lib/push';
+import { isQuiet } from '@/lib/quiet';
 import { adapters } from '@/lib/sources';
 import { runSync } from '@/lib/sync';
 import { markDone, markPending, snooze } from '@/lib/tasks';
@@ -65,10 +66,10 @@ export async function removeDeviceAction(token: string) {
   await removeDevice(token);
 }
 
-export async function sendTestAction(): Promise<{ sent: number }> {
+export async function sendTestAction(): Promise<{ sent: number; quietHours: boolean }> {
   await requireOwner();
-  const { sent } = await pushToAll({ title: 'Reminders are on', body: 'This is how Lume will remind you before each deadline.' });
-  return { sent };
+  const { sent } = await pushToAll({ title: 'Reminders are on', body: 'This is how Lume will remind you before each deadline.', test: true });
+  return { sent, quietHours: isQuiet(Date.now()) };
 }
 
 export async function setThemeAction(theme: string) {

@@ -12,6 +12,7 @@ import org.json.JSONObject;
  * Buttons in Lume's web Settings reach the app through lume:// links (sent as Android intent URLs):
  *   lume://test-alarm  rings a test alarm in 10 seconds
  *   lume://sync        fetches the alarm schedule right now
+ *   lume://update      downloads and installs the latest Lume
  */
 public class BridgeActivity extends Activity {
     static final String TEST_TASK = "lume-test";
@@ -33,6 +34,8 @@ public class BridgeActivity extends Activity {
         } else if ("sync".equals(what)) {
             SyncWorker.enqueue(this);
             Toast.makeText(this, "Syncing alarms…", Toast.LENGTH_SHORT).show();
+        } else if ("update".equals(what)) {
+            startActivity(new android.content.Intent(this, UpdateActivity.class));
         }
         finish();
     }
