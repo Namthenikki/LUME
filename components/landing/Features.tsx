@@ -279,7 +279,7 @@ export function Features() {
       <Feature className="lg:col-span-5" title="Fills itself in" body="Checks your Manipal LMS every hour and adds every new assignment and quiz. You never type a task in.">
         <SyncFragment />
       </Feature>
-      <Feature className="lg:col-span-7" title="Reminders on a schedule" body="Seven reminders per deadline, closer together as it gets near. The last three stay on screen until you act.">
+      <Feature className="lg:col-span-7" title="Reminders on a schedule" body="Reminders from two days before down to ten minutes before. The last ones stay on screen, and the Android app rings like an alarm.">
         <ScheduleFragment />
       </Feature>
       <Feature className="lg:col-span-7" title="Done from the notification" body="Tap Mark done without opening the app, and the rest of that task's reminders are cancelled.">

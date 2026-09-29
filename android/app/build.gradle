@@ -13,14 +13,16 @@ if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
 
 android {
     namespace = 'app.lume.deadlines'
-    compileSdk = 36
+    // The current AndroidX libraries need API 37 to compile against; the app still targets 36.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = 'app.lume.deadlines'
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = '1.0'
+        // scripts/build-android.mjs passes an ever-increasing code, so a new APK installs over the old one.
+        versionCode = (project.findProperty('lume.versionCode') ?: '1').toString().toInteger()
+        versionName = (project.findProperty('lume.versionName') ?: 'dev').toString()
 
         buildConfigField 'String', 'LUME_ORIGIN', "\"${origin}\""
         manifestPlaceholders = [lumeHost: host, lumeStartUrl: "${origin}/dashboard".toString()]

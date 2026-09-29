@@ -5,7 +5,7 @@ import { LumeMark } from '@/components/LumeMark';
 
 const POINTS = [
   { title: 'Finds every deadline', body: 'Checks your Manipal LMS calendar every hour, across all your courses.' },
-  { title: 'Reminds you in time', body: 'Seven reminders per deadline, closer together as it gets near.' },
+  { title: 'Reminds you in time', body: 'Reminders from two days before down to ten minutes before, closer together as it gets near.' },
   { title: 'Stops when you’re done', body: 'Tap Mark done on any reminder and the rest are cancelled.' },
 ];
 

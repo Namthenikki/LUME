@@ -23,7 +23,7 @@ function useInAndroidApp(): boolean {
   return inApp;
 }
 
-export function AndroidCard({ phones }: { phones: { label: string; lastSeenAt: number }[] }) {
+export function AndroidCard({ phones, apkReady }: { phones: { label: string; lastSeenAt: number }[]; apkReady: boolean }) {
   const inApp = useInAndroidApp();
   const now = useNow(60_000);
   const [pending, start] = useTransition();
@@ -46,7 +46,11 @@ export function AndroidCard({ phones }: { phones: { label: string; lastSeenAt: n
         </div>
       </div>
 
-      {!inApp && (
+      {!inApp && !apkReady && (
+        <p className="mt-4 rounded-[12px] bg-sunken px-4 py-3 text-[13px] text-ink-2">The download appears here once Lume is deployed and the app is built for its address (npm run android:release).</p>
+      )}
+
+      {!inApp && apkReady && (
         <div className="mt-4 space-y-3">
           <motion.a
             href="/downloads/lume.apk"

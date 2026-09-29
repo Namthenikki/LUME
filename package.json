@@ -7,7 +7,8 @@
     "tasks:preview": "tsx scripts/preview-tasks.ts",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "android:release": "node scripts/build-android.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",

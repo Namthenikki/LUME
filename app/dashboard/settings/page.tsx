@@ -2,6 +2,7 @@ import { connection } from 'next/server';
 import { AndroidCard } from '@/components/app/AndroidCard';
 import { PageHeader } from '@/components/app/PageHeader';
 import { listAlarmDevices } from '@/lib/alarm-devices';
+import androidRelease from '@/lib/android-release.json';
 import { cookies } from 'next/headers';
 import { AppearanceCard, InstallCard, NotificationsCard } from '@/components/app/SettingsCards';
 import { Tile } from '@/components/landing/widgets';
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="appear space-y-4">
           <NotificationsCard devices={devices} />
-          <AndroidCard phones={phones} />
+          <AndroidCard phones={phones} apkReady={androidRelease.origin !== null} />
           <AppearanceCard theme={theme} />
           <InstallCard />
         </div>

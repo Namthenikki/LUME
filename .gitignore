@@ -30,4 +30,4 @@ android/app/build/
 android/local.properties
 android/*.jks
 android/keystore.properties
-android/build.log
+android/*.log

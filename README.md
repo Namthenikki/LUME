@@ -1,17 +1,20 @@
 # Lume
 
-A personal deadline manager. Lume reads every assignment and quiz deadline from the Manipal LMS
-on its own, shows them in one dashboard, and sends push notifications that get more frequent as a
-deadline gets close, until you mark it done. It's an installable web app (PWA) for one person: you.
+A personal deadline manager. Lume reads every assignment and quiz deadline from the Manipal LMS on
+its own, shows them in one dashboard, and reminds you more often as each deadline gets close, until
+you mark it done. On Android it also **rings like an alarm** 30 and 10 minutes before a deadline.
+
+It's a web app (installable as a PWA) plus a small Android app that wraps it (a Trusted Web
+Activity) and adds the alarms. It's for one person: you.
 
 ## How it works
 
 ```
 MUJ LMS calendar feed ──(hourly)──▶ /api/sync ──▶ Firestore `tasks` ──▶ dashboard
-                                          │
                                           └─ "New" / "Deadline changed" push
-Scheduler ──(every 15 min)──▶ /api/remind ──▶ FCM ──▶ service worker ──▶ notification
-                                                         └─ Mark done / Remind in 2h ─▶ /api/tasks/[id]/action
+Scheduler ──(every 5 min)──▶ /api/remind ──▶ FCM ──▶ service worker ──▶ notification
+                                                        └─ Mark done / Remind in 2h ─▶ /api/tasks/[id]/action
+Android app ──(every 15 min + on launch)──▶ /api/alarms ──▶ exact alarms on the phone ──▶ full-screen alarm
 ```
 
 - **Sources** implement one interface (`lib/sources/types.ts`). Today there is `ManipalIcsAdapter`,
@@ -19,9 +22,14 @@ Scheduler ──(every 15 min)──▶ /api/remind ──▶ FCM ──▶ serv
 - **Sync** (`lib/sync.ts`) adds new tasks, updates changed deadlines, and marks tasks that vanished
   from the LMS as cancelled. Anything already past when first seen is ignored.
 - **Reminders** (`lib/remind.ts`, `lib/stages.ts`) fire once each: 48h, 24h, 9 AM on the day, 6h, 3h,
-  1h before, and once right after the deadline. Reminders that come due together are sent as one
-  notification. The 6h/3h/1h ones stay on screen until you act.
-- **Dashboard** (`app/dashboard`): Home, Reminders, Done and Settings, light and dark mode, built phone-first.
+  1h, 30 min and 10 min before, and once right after the deadline. Reminders that come due together
+  are sent as one notification. From 6h on they stay on screen until you act.
+- **Alarms** (`android/`): the Android app fetches the alarm schedule and sets exact alarm-clock alarms
+  for 30 and 10 minutes before each deadline. When one goes off it rings with the phone's alarm sound
+  (on the alarm volume, so even in silent mode), repeating until you tap **Mark done** or **Snooze 10 min**.
+  On a locked phone it opens a full-screen alarm. Before ringing it checks the task is still pending.
+- **Dashboard** (`app/dashboard`): Home, Reminders, Done and Settings. Phone-first, light by default,
+  with an optional dark theme.
 
 All times are stored in UTC and shown in IST.
 
@@ -56,7 +64,7 @@ Copy `.env.example` to `.env.local` and fill it in.
 | `AUTH_SECRET` | Long random string that signs the unlock cookie and notification buttons |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Service account (secret) |
 | `NEXT_PUBLIC_FIREBASE_*` | Web app config and VAPID key (public by design) |
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | Reads NPTEL's deadline emails (model is optional) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Only for the email bridge, which isn't connected yet |
 
 Generate the random strings with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
@@ -71,8 +79,7 @@ npm run dev             # http://localhost:3000
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub, then **Add New → Project** on [vercel.com](https://vercel.com) and import it.
-   (Or run `npx vercel` in this folder.)
+1. On [vercel.com](https://vercel.com): **Add New → Project**, import this GitHub repo.
 2. Add every variable from `.env.local` under **Settings → Environment Variables** (Production).
    `NEXT_PUBLIC_*` values are built into the app, so redeploy after changing them.
 3. Deploy. `vercel.json` adds a daily `/api/sync` as a backup; Vercel sends `CRON_SECRET` to it automatically.
@@ -80,64 +87,85 @@ npm run dev             # http://localhost:3000
 ## Scheduling
 
 Vercel's free plan only allows a cron job **once a day** (checked September 2026), so the frequent
-triggers come from outside:
+triggers come from outside.
 
 **cron-job.org (recommended, free, minute-accurate).** Create two jobs:
 
 | URL | Schedule | Header |
 | --- | --- | --- |
 | `https://<your-app>/api/sync` | every hour | `Authorization: Bearer <CRON_SECRET>` |
-| `https://<your-app>/api/remind` | every 15 minutes | `Authorization: Bearer <CRON_SECRET>` |
+| `https://<your-app>/api/remind` | every 5 minutes | `Authorization: Bearer <CRON_SECRET>` |
+
+Every 5 minutes keeps the 30-minute and 10-minute reminders on time. The Android alarms don't depend
+on this: they're set on the phone itself.
 
 **GitHub Actions (alternative).** `.github/workflows/cron.yml` does the same. Add repository secrets
-`APP_URL` and `CRON_SECRET`. GitHub can start scheduled runs late, and a private repo would use more
-than the free 2,000 minutes a month.
+`APP_URL` and `CRON_SECRET`. GitHub can start scheduled runs late, and on a private repo this uses far
+more than the free 2,000 minutes a month.
+
+## The Android app
+
+The app lives in `android/`: Google's Trusted Web Activity library opens the deployed site full
+screen, and a small native part (`android/app/src/main/java/app/lume/deadlines`) handles the alarms.
+
+**Build it for your deployed site:**
+
+```bash
+npm run android:release -- https://your-app.vercel.app
+git add public/downloads/lume.apk public/.well-known/assetlinks.json lib/android-release.json
+git commit -m "Android app for https://your-app.vercel.app" && git push
+```
+
+That builds a signed APK for that address, puts it at `/downloads/lume.apk` (Settings offers it), and
+publishes `/.well-known/assetlinks.json`, which lets Android open the site with no browser bar.
+
+It needs JDK 17+, the Android SDK and Gradle 9. The script defaults to the paths on the build PC; set
+`JAVA_HOME`, `GRADLE` and `GRADLE_USER_HOME` to use others.
+
+**Signing key:** `android/lume-release.jks` and `android/keystore.properties` sign every build. They're
+git-ignored, so **back them up somewhere safe**. Android only installs an update if it's signed with
+the same key; lose it and you'd have to uninstall the app and install a fresh one.
 
 ## On your phone
 
-1. Open your Vercel URL in Chrome and unlock with `OWNER_PASSWORD`.
-2. Tap **Turn on** on the blue reminders card, and allow notifications.
-3. **Settings → Install** (or Chrome's ⋮ menu → Add to Home screen).
+1. Open your Vercel URL in Chrome, unlock with `OWNER_PASSWORD`, then **Settings → Android app →
+   Download for Android**. Open the file and allow installing from Chrome when asked.
+2. Open **Lume** from your home screen and unlock once more. The app pairs itself for alarms within a
+   minute (Settings shows "1 phone rings alarms").
+3. Tap **Turn on** on the blue reminders card and allow notifications. The alarms need this too.
 4. **Settings → Send a test** to check a notification arrives.
+5. On Xiaomi/Redmi/POCO, Realme, Oppo, Vivo and OnePlus phones, set Lume's battery usage to **No
+   restrictions** (long-press the app icon → App info → Battery), or the phone may delay its alarm sync.
+   On Android 14+, also check App info → **Full-screen notifications** is allowed for the lock-screen alarm.
+
+Without the Android app (desktop, iPhone), **Settings → Install** adds Lume as a web app, with the
+same notifications but no alarm.
 
 ## Security
 
-- `/dashboard` needs the unlock cookie (`proxy.ts`): an httpOnly, year-long cookie holding an
-  HMAC signed with `AUTH_SECRET`. Lock a device from Settings.
+- `/dashboard` needs the unlock cookie (`proxy.ts`): an httpOnly, year-long cookie holding an HMAC
+  signed with `AUTH_SECRET`. Lock a device from Settings.
 - `/api/sync` and `/api/remind` need `CRON_SECRET`.
-- Notification buttons call `/api/tasks/[id]/action` with a per-task signed token, so they work
-  without opening the app, and nobody can forge one.
+- Notification and alarm buttons call `/api/tasks/[id]/action` with a per-task signed token, so they
+  work without opening the app, and nobody can forge one.
+- The Android app reads `/api/alarms` with a random device token that you approve by opening the app
+  while unlocked. Only a hash of it is stored. **Settings → Android app → Stop alarms** unpairs every phone.
 - Firestore rules deny all browser access.
 
-## NPTEL (through your Gmail)
+## Email sources (not connected yet)
 
-NPTEL emails every assignment deadline and every extension. A small Google Apps Script (the
-"Gmail bridge", `lib/gmail-bridge.ts`) runs in your own Google account, finds NPTEL emails every
-hour and posts them to `/api/ingest/email` with `CRON_SECRET`. Lume asks Gemini to pull out each
-deadline (`lib/gemini.ts`), keeps the result in Firestore `emails/{gmailId}` (subject, sender, date and
-deadlines only, never the email body) and syncs them as NPTEL tasks.
+`lib/gmail-bridge.ts`, `lib/inbox.ts`, `lib/gemini.ts` and `/api/ingest/email` form a pipeline for
+sources that email their deadlines: a Google Apps Script in your Gmail posts matching emails to Lume,
+Gemini extracts `{ course, title, dueAt }`, and they sync like any other task. It's parked because
+NPTEL's emails don't reach this Gmail. IITM BS can use it: add its sender to `SEARCHES` and
+`new EmailDeadlinesAdapter('iitm')` to `emailAdapters()` in `lib/sources/index.ts`.
 
-1. Get a free Gemini key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and set
-   `GEMINI_API_KEY` (on Vercel too).
-2. On your **deployed** Lume, open **Settings → Sources → NPTEL → How to connect**, tap
-   **Copy script**, paste it into a new project at [script.google.com](https://script.google.com),
-   choose `setup` and click **Run**. Allow it to read your Gmail (Advanced → Go to project, since
-   it's your own unverified script).
-3. The first run catches up on the last 60 days. After that it checks every hour.
+## Adding the next source
 
-Several emails about the same deadline (announced, reminder, extended) become one task; the newest
-email's date wins, so an extension shows up as "Deadline changed". Email sources never mark tasks
-as cancelled, because an email search can't know that an assignment was withdrawn.
-
-## Adding the next source (IITM BS)
-
-- **By email** (like NPTEL): add a search for its sender to `SEARCHES` in the bridge script
-  (`lib/gmail-bridge.ts`), and `new EmailDeadlinesAdapter('iitm')` to `emailAdapters()` in
-  `lib/sources/index.ts`. Then copy the script again from Settings.
-- **Anything else**: write an adapter in `lib/sources/` that implements `SourceAdapter`.
-  `fetchTasks()` returns `RawTask[]`, and `externalId` must stay the same for the same assignment
-  across runs, since that's what prevents duplicates. Set `authoritative` to true only if it returns every
-  current item. Register it in `adapters()`.
+Write an adapter in `lib/sources/` that implements `SourceAdapter`. `fetchTasks()` returns
+`RawTask[]`, and `externalId` must stay the same for the same assignment across runs, since that's what
+prevents duplicates. Set `authoritative` to true only if it returns every current item (then items
+missing from it are marked cancelled). Register it in `adapters()` in `lib/sources/index.ts`.
 
 ## Troubleshooting
 
@@ -146,3 +174,7 @@ as cancelled, because an email search can't know that an assignment was withdraw
 - **No notifications**: check Settings → Notifications is on for the device, send a test, and make
   sure the scheduler calls `/api/remind` with the right header.
 - **"Reminders aren't set up yet"**: the `NEXT_PUBLIC_FIREBASE_*` variables are missing from the build.
+- **The Android app shows a browser bar**: `/.well-known/assetlinks.json` isn't live for that address.
+  Rebuild with `npm run android:release` for the exact URL, and push.
+- **No alarm**: Settings should list your phone under Android app. If not, open the Lume app once while
+  unlocked. Also check the battery and full-screen settings above.

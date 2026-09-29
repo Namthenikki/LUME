@@ -38,13 +38,16 @@ export function passwordMatches(input: string): boolean {
   return safeEqual(sign(`pw:${input}`), sign(`pw:${requireEnv('OWNER_PASSWORD')}`));
 }
 
-export const ownerCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: 60 * 60 * 24 * 365,
-};
+/** Secure whenever the request came over https (always, once deployed); plain http only for local testing. */
+export function ownerCookieOptions(https: boolean) {
+  return {
+    httpOnly: true,
+    secure: https,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+  };
+}
 
 /** Per-task token carried in each notification, so its buttons work from the service worker. */
 export function actionToken(taskId: string): string {
