@@ -1,30 +1,15 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { useEffect, useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { unpairAlarmDevicesAction } from '@/app/dashboard/actions';
 import { Tile } from '../landing/widgets';
+import { APK_URL, useDevice } from './install';
 import { ago, useNow } from './time';
 import { Panel } from './ui';
 
-const IN_APP_KEY = 'lume:in-android-app';
-
-/** True inside the Lume Android app (a Trusted Web Activity opens with an android-app:// referrer). */
-function useInAndroidApp(): boolean {
-  const [inApp, setInApp] = useState(false);
-  useEffect(() => {
-    try {
-      if (document.referrer.startsWith('android-app://')) sessionStorage.setItem(IN_APP_KEY, '1');
-      setInApp(sessionStorage.getItem(IN_APP_KEY) === '1');
-    } catch {
-      setInApp(document.referrer.startsWith('android-app://'));
-    }
-  }, []);
-  return inApp;
-}
-
 export function AndroidCard({ phones, apkReady }: { phones: { label: string; lastSeenAt: number }[]; apkReady: boolean }) {
-  const inApp = useInAndroidApp();
+  const inApp = useDevice().inAndroidApp;
   const now = useNow(60_000);
   const [pending, start] = useTransition();
 
@@ -53,7 +38,7 @@ export function AndroidCard({ phones, apkReady }: { phones: { label: string; las
       {!inApp && apkReady && (
         <div className="mt-4 space-y-3">
           <motion.a
-            href="/downloads/lume.apk"
+            href={APK_URL}
             download
             whileTap={{ scale: 0.97 }}
             className="flex h-11 w-full items-center justify-center rounded-[12px] bg-blue text-[14px] font-semibold text-white shadow-[0_10px_24px_-10px_rgb(29_110_245/0.8)] sm:w-auto sm:px-5"

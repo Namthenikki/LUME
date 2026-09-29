@@ -8,6 +8,7 @@ import type { TaskView } from '@/lib/tasks';
 import { dayIST, istDayNumber } from '@/lib/time';
 import { CheckTile } from '../landing/widgets';
 import { ChevronIcon } from './icons';
+import { GetAppCard } from './GetAppCard';
 import { NotificationPrompt } from './NotificationPrompt';
 import { TopBar } from './Shell';
 import { TaskRow } from './TaskRow';
@@ -32,7 +33,7 @@ function groupOf(dueAt: number, now: number): Group {
 
 type Patch = { id: string; changes: Partial<TaskView> };
 
-export function HomeView({ tasks, renderedAt, focusId }: { tasks: TaskView[]; renderedAt: number; focusId: string | null }) {
+export function HomeView({ tasks, renderedAt, focusId, apkReady }: { tasks: TaskView[]; renderedAt: number; focusId: string | null; apkReady: boolean }) {
   const now = useNow(1000) ?? renderedAt;
   const [items, patch] = useOptimistic(tasks, (state, p: Patch) => state.map((t) => (t.id === p.id ? { ...t, ...p.changes } : t)));
   const [, start] = useTransition();
@@ -71,6 +72,7 @@ export function HomeView({ tasks, renderedAt, focusId }: { tasks: TaskView[]; re
       </motion.header>
 
       <NotificationPrompt />
+      <GetAppCard apkReady={apkReady} />
 
       <motion.div
         className="grid gap-3 sm:gap-4 lg:grid-cols-[1.15fr_1fr_1fr]"

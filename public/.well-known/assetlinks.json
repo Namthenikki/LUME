@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.lume.deadlines",
+      "sha256_cert_fingerprints": [
+        "3E:B0:0E:7D:1E:D4:42:41:EB:EC:3E:D6:C1:A3:E1:A7:B9:4E:81:1E:DC:21:94:D7:FD:39:A3:5C:6E:C1:90:F6"
+      ]
+    }
+  }
+]

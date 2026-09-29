@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import { useRef } from 'react';
+import androidRelease from '@/lib/android-release.json';
 import { AlarmTile, AppTile, CheckTile, ReminderCard, SourcesCard, StickyNote, WeekCard } from './widgets';
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -125,17 +126,35 @@ export function Hero() {
           Assignments and quizzes from your Manipal LMS, with reminders until they&apos;re done.
         </motion.p>
 
-        <motion.a
-          href="/dashboard"
-          className="mt-9 inline-flex h-12 items-center rounded-[12px] bg-blue px-7 text-[15px] font-medium text-white shadow-[0_10px_24px_-10px_rgb(29_110_245/0.8)]"
+        <motion.div
+          className="mt-9 flex w-full max-w-[340px] flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.55, ease }}
-          whileHover={{ y: -2, boxShadow: '0 16px 30px -12px rgb(29 110 245 / 0.9)' }}
-          whileTap={{ scale: 0.97 }}
         >
-          Open my deadlines
-        </motion.a>
+          <motion.a
+            href="/dashboard"
+            className="inline-flex h-12 items-center justify-center rounded-[12px] bg-blue px-7 text-[15px] font-medium text-white shadow-[0_10px_24px_-10px_rgb(29_110_245/0.8)]"
+            whileHover={{ y: -2, boxShadow: '0 16px 30px -12px rgb(29 110 245 / 0.9)' }}
+            whileTap={{ scale: 0.97 }}
+          >
+            Open my deadlines
+          </motion.a>
+          {androidRelease.origin && (
+            <motion.a
+              href="/downloads/lume.apk"
+              download
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] border border-line bg-white px-6 text-[15px] font-medium shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <svg viewBox="0 0 20 20" className="size-[18px]" aria-hidden>
+                <path d="M10 3v9m0 0l-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Get the Android app
+            </motion.a>
+          )}
+        </motion.div>
 
         {/* On phones the widgets sit below the button instead of around the headline */}
         <div className="relative mt-14 h-[250px] w-full max-w-[340px] md:hidden" aria-hidden>
