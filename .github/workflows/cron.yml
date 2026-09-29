@@ -1,0 +1,27 @@
+# Optional alternative to cron-job.org: syncs the LMS hourly and sends due reminders every 15 minutes.
+# GitHub may start scheduled runs several minutes late, and on a private repo every run is billed as
+# at least one minute (~3,600 a month here, over the free 2,000), so cron-job.org is the recommended trigger.
+#
+# Needs two repository secrets: APP_URL (e.g. https://lume-xyz.vercel.app) and CRON_SECRET.
+name: Lume cron
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # reminders
+    - cron: '5 * * * *' # LMS sync
+  workflow_dispatch:
+
+jobs:
+  sync:
+    if: github.event.schedule == '5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/sync"
+
+  remind:
+    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.APP_URL }}/api/remind"

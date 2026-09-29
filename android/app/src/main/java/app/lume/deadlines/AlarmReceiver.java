@@ -1,0 +1,43 @@
+package app.lume.deadlines;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+/**
+ * An alarm went off. Before ringing, ask Lume (briefly) whether the task is still pending, so a task
+ * marked done since the last sync stays quiet. If Lume can't be reached, ring anyway.
+ */
+public class AlarmReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        JSONObject alarm;
+        try {
+            alarm = new JSONObject(intent.getStringExtra(Alarms.EXTRA));
+        } catch (JSONException | NullPointerException e) {
+            return;
+        }
+        Context app = context.getApplicationContext();
+        PendingResult result = goAsync();
+        new Thread(() -> {
+            try {
+                boolean ring = true;
+                try {
+                    Api.Schedule schedule = Api.fetchSchedule(app, 4000);
+                    if (schedule != null) {
+                        Alarms.replaceAll(app, schedule.alarms, schedule.pendingTaskIds);
+                        ring = schedule.pendingTaskIds.contains(alarm.optString("taskId"));
+                    }
+                } catch (Exception offline) {
+                    // No connection: better to ring for a finished task than miss a deadline.
+                }
+                if (ring) Alarms.ring(app, alarm);
+            } finally {
+                result.finish();
+            }
+        }).start();
+    }
+}
