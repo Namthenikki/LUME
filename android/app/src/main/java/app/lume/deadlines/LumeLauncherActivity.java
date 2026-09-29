@@ -17,6 +17,7 @@ public class LumeLauncherActivity extends LauncherActivity {
         super.onCreate(savedInstanceState);
         Alarms.ensureChannel(this);
         SyncWorker.enqueue(this);
+        PermissionActivity.askIfNeeded(this);
     }
 
     @Override

@@ -127,6 +127,33 @@
             android:theme="@style/Lume.Alarm"
             android:turnScreenOn="true" />
 
+        <activity
+            android:name=".PermissionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- lume://test-alarm and lume://sync, opened from buttons in the web app's Settings -->
+        <activity
+            android:name=".BridgeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="test-alarm"
+                    android:scheme="lume" />
+                <data
+                    android:host="sync"
+                    android:scheme="lume" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".AlarmReceiver"
             android:exported="false" />

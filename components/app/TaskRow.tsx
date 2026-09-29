@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { TaskView } from '@/lib/tasks';
 import { dayIST, istDayNumber, timeIST } from '@/lib/time';
 import { CheckIcon, ClockIcon, OpenIcon } from './icons';
@@ -11,7 +11,7 @@ import { SourceChip, TypeChip } from './ui';
 const TONE = { calm: 'text-ink-2', soon: 'text-orange', urgent: 'text-red', late: 'text-red' };
 const ease = [0.22, 1, 0.36, 1] as const;
 
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   now,
   focused,
@@ -27,7 +27,6 @@ export function TaskRow({
   const [open, setOpen] = useState(focused);
   const [ticking, setTicking] = useState(false);
   const ref = useRef<HTMLLIElement>(null);
-  const left = timeLeft(task.dueAt, now);
   const sameDay = istDayNumber(task.dueAt) === istDayNumber(now);
   const snoozed = task.snoozedUntil && task.snoozedUntil > now;
   const opensLater = task.type === 'quiz' && task.opensAt && task.opensAt > now;
@@ -90,7 +89,7 @@ export function TaskRow({
         </button>
 
         <div className="shrink-0 py-1.5 pr-1 text-right">
-          <p className={`text-[13px] font-semibold tabular-nums ${TONE[left.tone]}`}>{left.text}</p>
+          <TimeLeft dueAt={task.dueAt} renderedAt={now} />
           <p className="text-[12px] text-ink-3">{timeIST(task.dueAt)}</p>
           {!sameDay && <p className="text-[12px] text-ink-3">{dayIST(task.dueAt)}</p>}
         </div>
@@ -129,4 +128,21 @@ export function TaskRow({
       </AnimatePresence>
     </motion.li>
   );
+});
+
+/** Time left, ticking every second in the last hour and every 30 seconds before that. */
+function TimeLeft({ dueAt, renderedAt }: { dueAt: number; renderedAt: number }) {
+  const [now, setNow] = useState(renderedAt);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const n = Date.now();
+      setNow(n);
+      timer = setTimeout(tick, Math.abs(dueAt - n) < 3_600_000 ? 1000 : 30_000);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [dueAt]);
+  const left = timeLeft(dueAt, now);
+  return <p className={`text-[13px] font-semibold tabular-nums ${TONE[left.tone]}`}>{left.text}</p>;
 }

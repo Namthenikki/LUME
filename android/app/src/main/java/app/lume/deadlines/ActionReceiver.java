@@ -46,6 +46,7 @@ public class ActionReceiver extends BroadcastReceiver {
             return;
         }
         if (DONE.equals(intent.getAction())) {
+            if (taskId.startsWith(BridgeActivity.TEST_TASK)) return; // nothing to mark on the server
             Alarms.cancelTask(app, taskId);
             PendingResult result = goAsync();
             new Thread(() -> {

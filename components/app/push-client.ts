@@ -3,14 +3,17 @@
 import { getApps, initializeApp } from 'firebase/app';
 import { deleteToken, getMessaging, getToken, isSupported } from 'firebase/messaging';
 import { registerDeviceAction, removeDeviceAction } from '@/app/dashboard/actions';
+import webConfig from '@/lib/firebase-web-config.json';
 
+// The Firebase web app's public config (lib/firebase-web-config.json, read from the project's own
+// registration); environment variables override it. Without a VAPID key, FCM uses its default one.
 const config = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || webConfig.apiKey,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || webConfig.projectId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || webConfig.appId,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || webConfig.messagingSenderId,
 };
-const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || undefined;
 const TOKEN_KEY = 'lume:push-token';
 
 export type PushState = 'loading' | 'unconfigured' | 'unsupported' | 'blocked' | 'off' | 'on';
@@ -33,7 +36,7 @@ function storeToken(token: string | null) {
 }
 
 export async function pushState(): Promise<PushState> {
-  if (!config.apiKey || !config.appId || !vapidKey) return 'unconfigured';
+  if (!config.apiKey || !config.appId || !config.messagingSenderId) return 'unconfigured';
   if (!('serviceWorker' in navigator) || !('Notification' in window) || !(await isSupported())) return 'unsupported';
   if (Notification.permission === 'denied') return 'blocked';
   return Notification.permission === 'granted' && storedToken() ? 'on' : 'off';
@@ -49,7 +52,7 @@ async function currentToken(): Promise<string> {
   const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
   const app = getApps()[0] ?? initializeApp(config);
-  return getToken(getMessaging(app), { vapidKey, serviceWorkerRegistration: registration });
+  return getToken(getMessaging(app), { ...(vapidKey ? { vapidKey } : {}), serviceWorkerRegistration: registration });
 }
 
 /** Asks for permission if needed, gets this device's FCM token and saves it on the server. */

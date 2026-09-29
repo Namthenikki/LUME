@@ -19,7 +19,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(d.title, {
       body: d.body,
       tag: d.tag,
-      renotify: true,
+      renotify: d.silent !== '1',
+      silent: d.silent === '1', // quiet hours (12 AM to 8 AM IST): no sound or vibration
       requireInteraction: d.sticky === '1',
       icon: '/icons/192.png',
       badge: '/icons/badge.png',

@@ -4,12 +4,20 @@ import { motion } from 'motion/react';
 import { useTransition } from 'react';
 import { unpairAlarmDevicesAction } from '@/app/dashboard/actions';
 import { Tile } from '../landing/widgets';
+import androidRelease from '@/lib/android-release.json';
 import { APK_URL, useDevice } from './install';
 import { ago, useNow } from './time';
 import { Panel } from './ui';
 
+/** A button link into the Lume app (lume://…), as an Android intent URL; without the app it returns to Settings. */
+function bridgeLink(action: 'test-alarm' | 'sync'): string {
+  const fallback = encodeURIComponent(`${androidRelease.origin ?? ''}/dashboard/settings`);
+  return `intent://${action}#Intent;scheme=lume;package=app.lume.deadlines;S.browser_fallback_url=${fallback};end`;
+}
+
 export function AndroidCard({ phones, apkReady }: { phones: { label: string; lastSeenAt: number }[]; apkReady: boolean }) {
-  const inApp = useDevice().inAndroidApp;
+  const device = useDevice();
+  const inApp = device.inAndroidApp;
   const now = useNow(60_000);
   const [pending, start] = useTransition();
 
@@ -26,7 +34,7 @@ export function AndroidCard({ phones, apkReady }: { phones: { label: string; las
         <div className="min-w-0 flex-1">
           <p className="font-medium">{inApp ? 'You’re in the Lume app' : 'Get the Lume app'}</p>
           <p className="text-[13px] text-ink-2">
-            Your phone rings like an alarm 30 and 10 minutes before a deadline, full screen, even on silent, until you mark it done or snooze it.
+            Your phone rings like an alarm 30 and 10 minutes before a deadline, even on silent, until you mark it done or snooze it. Never between 12 AM and 8 AM.
           </p>
         </div>
       </div>
@@ -47,6 +55,25 @@ export function AndroidCard({ phones, apkReady }: { phones: { label: string; las
           </motion.a>
           <p className="text-[13px] text-ink-3">
             Open the downloaded file on your phone and allow installing from your browser when asked. Then open Lume from your home screen once, so it can pair.
+          </p>
+        </div>
+      )}
+
+      {device.android && (inApp || apkReady) && (
+        <div className="mt-4 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={bridgeLink('test-alarm')}
+              className="flex h-11 items-center justify-center rounded-[12px] bg-blue px-3 text-center text-[13px] font-semibold text-white shadow-[0_8px_18px_-10px_rgb(29_110_245/0.8)]"
+            >
+              Ring a test alarm
+            </a>
+            <a href={bridgeLink('sync')} className="flex h-11 items-center justify-center rounded-[12px] bg-chip px-3 text-center text-[13px] font-medium">
+              Sync alarms now
+            </a>
+          </div>
+          <p className="text-[13px] text-ink-3">
+            The test rings 10 seconds later. If it stays quiet: long-press the Lume icon → App info → Notifications → Allow, and Battery → No restrictions.
           </p>
         </div>
       )}

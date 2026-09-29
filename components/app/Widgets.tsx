@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TaskView } from '@/lib/tasks';
 import { upcomingReminders } from '@/lib/stages';
 import { dayIST, formatIST, istDayNumber, timeIST } from '@/lib/time';
@@ -16,6 +16,17 @@ function clock(ms: number): string {
   const h = Math.floor(s / 3600);
   if (h >= 100) return `${Math.floor(h / 24)} days`;
   return [h, Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
+/** The big countdown: the only part of Home that updates every second. */
+function LiveClock({ dueAt, renderedAt }: { dueAt: number; renderedAt: number }) {
+  const [now, setNow] = useState(renderedAt);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <>{clock(dueAt - now)}</>;
 }
 
 /** The soonest pending deadline, with a live countdown and its actions. */
@@ -55,7 +66,7 @@ export function NextDeadline({
           className="flex flex-1 flex-col items-center justify-center text-center"
         >
           <p className={`text-[clamp(2.6rem,12vw,3.4rem)] font-medium leading-none tabular-nums tracking-[-0.04em] ${urgent ? 'text-red' : ''}`}>
-            {clock(task.dueAt - now)}
+            <LiveClock dueAt={task.dueAt} renderedAt={now} />
           </p>
           <p className="mt-3 font-semibold">{task.title}</p>
           <p className="text-[14px] text-ink-2">{task.course}</p>

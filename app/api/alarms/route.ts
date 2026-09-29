@@ -1,5 +1,6 @@
 import { isDeviceToken, isPairedAlarmDevice } from '@/lib/alarm-devices';
 import { actionToken } from '@/lib/auth';
+import { isQuiet } from '@/lib/quiet';
 import { ALARM_STAGES } from '@/lib/stages';
 import { listTasks } from '@/lib/tasks';
 
@@ -22,8 +23,8 @@ export async function GET(request: Request) {
     pendingTaskIds.push(t.id);
     for (const { stage, minutes } of ALARM_STAGES) {
       const at = t.dueAt - minutes * 60_000;
-      // Snoozed tasks don't ring until the snooze ends.
-      if (at <= now || (t.snoozedUntil && at < t.snoozedUntil)) continue;
+      // Snoozed tasks don't ring until the snooze ends, and nothing rings in quiet hours.
+      if (at <= now || (t.snoozedUntil && at < t.snoozedUntil) || isQuiet(at)) continue;
       alarms.push({
         id: `${t.id}:${stage}`,
         taskId: t.id,

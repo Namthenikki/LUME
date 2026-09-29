@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useCallback, useOptimistic, useState, useTransition } from 'react';
 import { markDoneAction, snoozeAction, undoDoneAction } from '@/app/dashboard/actions';
 import type { Source } from '@/lib/sources/types';
 import type { TaskView } from '@/lib/tasks';
@@ -34,20 +34,25 @@ function groupOf(dueAt: number, now: number): Group {
 type Patch = { id: string; changes: Partial<TaskView> };
 
 export function HomeView({ tasks, renderedAt, focusId, apkReady }: { tasks: TaskView[]; renderedAt: number; focusId: string | null; apkReady: boolean }) {
-  const now = useNow(1000) ?? renderedAt;
+  // Grouping and labels only need a coarse clock; the countdowns tick on their own (TaskRow, Widgets).
+  const now = useNow(30_000) ?? renderedAt;
   const [items, patch] = useOptimistic(tasks, (state, p: Patch) => state.map((t) => (t.id === p.id ? { ...t, ...p.changes } : t)));
   const [, start] = useTransition();
   const [source, setSource] = useState<Source | 'all'>('all');
   const [showDone, setShowDone] = useState(false);
 
-  const act = (id: string, changes: Partial<TaskView>, action: (id: string) => Promise<void>) =>
-    start(async () => {
-      patch({ id, changes });
-      await action(id);
-    });
-  const done = (id: string) => act(id, { status: 'done', doneAt: Date.now(), snoozedUntil: null }, markDoneAction);
-  const undo = (id: string) => act(id, { status: 'pending', doneAt: null }, undoDoneAction);
-  const snooze = (id: string) => act(id, { snoozedUntil: Date.now() + 2 * 3_600_000 }, snoozeAction);
+  // Stable callbacks, so memoized task rows don't re-render when the parent does.
+  const act = useCallback(
+    (id: string, changes: Partial<TaskView>, action: (id: string) => Promise<void>) =>
+      start(async () => {
+        patch({ id, changes });
+        await action(id);
+      }),
+    [patch, start],
+  );
+  const done = useCallback((id: string) => act(id, { status: 'done', doneAt: Date.now(), snoozedUntil: null }, markDoneAction), [act]);
+  const undo = useCallback((id: string) => act(id, { status: 'pending', doneAt: null }, undoDoneAction), [act]);
+  const snooze = useCallback((id: string) => act(id, { snoozedUntil: Date.now() + 2 * 3_600_000 }, snoozeAction), [act]);
 
   const sources = [...new Set(items.map((t) => t.source))];
   const shown = items.filter((t) => source === 'all' || t.source === source);
@@ -131,7 +136,7 @@ export function HomeView({ tasks, renderedAt, focusId, apkReady }: { tasks: Task
               const list = pending.filter((t) => groupOf(t.dueAt, now) === g.id);
               if (!list.length) return null;
               return (
-                <motion.section key={g.id} layout className={`rounded-[20px] bg-card px-3 pt-3 shadow-card sm:px-4 ${g.id === 'overdue' ? 'ring-1 ring-red/30' : ''}`}>
+                <motion.section key={g.id} className={`rounded-[20px] bg-card px-3 pt-3 shadow-card sm:px-4 ${g.id === 'overdue' ? 'ring-1 ring-red/30' : ''}`}>
                   <h3 className="flex items-center gap-2 px-2 pt-1 text-[13px] font-semibold">
                     <span className={`size-2 rounded-full ${g.dot}`} />
                     <span className={g.id === 'overdue' ? 'text-red' : ''}>{g.label}</span>

@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { actionToken } from './auth';
 import { db } from './firebase-admin';
+import { isQuiet } from './quiet';
 
 export type Push = {
   title: string;
@@ -37,12 +38,15 @@ export async function pushToAll(push: Push): Promise<{ sent: number; failed: num
   const snap = await devices().get();
   if (snap.empty) return { sent: 0, failed: 0 };
 
+  // In quiet hours notifications still arrive, but without sound or vibration, and never stick.
+  const quiet = isQuiet(Date.now());
   const data: Record<string, string> = {
     title: push.title,
     body: push.body,
     tag: push.taskId ?? `lume-${Date.now()}`,
     url: push.taskId ? `/dashboard?task=${push.taskId}` : '/dashboard',
-    sticky: push.sticky ? '1' : '0',
+    sticky: push.sticky && !quiet ? '1' : '0',
+    silent: quiet ? '1' : '0',
   };
   if (push.taskId) {
     data.taskId = push.taskId;

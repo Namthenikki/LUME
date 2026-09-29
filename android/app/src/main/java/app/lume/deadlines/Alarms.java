@@ -39,6 +39,14 @@ final class Alarms {
     static final String CHANNEL = "deadline_alarms";
     static final String EXTRA = "alarm";
     static final long SNOOZE_MS = 10 * 60_000L;
+    /** Sleep time in IST: nothing rings (matches lib/quiet.ts on the server). */
+    static final int QUIET_START_HOUR = 0;
+    static final int QUIET_END_HOUR = 8;
+
+    static boolean isQuietNow() {
+        int hour = java.util.Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata")).get(java.util.Calendar.HOUR_OF_DAY);
+        return hour >= QUIET_START_HOUR && hour < QUIET_END_HOUR;
+    }
 
     static void ensureChannel(Context c) {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
@@ -119,6 +127,11 @@ final class Alarms {
             else keep.put(a);
         }
         save(c, keep);
+    }
+
+    /** An alarm that isn't kept for restores or syncs (the test alarm). */
+    static void scheduleOnce(Context c, JSONObject a) {
+        schedule(c, a);
     }
 
     private static void schedule(Context c, JSONObject a) {

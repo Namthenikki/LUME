@@ -21,6 +21,11 @@ public class AlarmReceiver extends BroadcastReceiver {
             return;
         }
         Context app = context.getApplicationContext();
+        if (alarm.optString("taskId").startsWith(BridgeActivity.TEST_TASK)) {
+            Alarms.ring(app, alarm); // the test alarm has no task to check, and rings even at night
+            return;
+        }
+        if (Alarms.isQuietNow()) return; // quiet hours: e.g. a snooze that lands after midnight
         PendingResult result = goAsync();
         new Thread(() -> {
             try {
