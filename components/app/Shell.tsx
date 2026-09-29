@@ -3,6 +3,7 @@
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { Health } from '@/lib/source-health';
 import { LumeMark } from '../LumeMark';
 import { BellIcon, DoneIcon, HomeIcon, SettingsIcon } from './icons';
 import { SyncButton } from './SyncButton';
@@ -23,7 +24,13 @@ function useActive() {
 }
 
 /** Desktop: a sidebar like the dashboard mockup. */
-export function Sidebar({ counts, lastSync }: { counts: ShellCounts; lastSync: number | null }) {
+const DOT: Record<Exclude<Health, 'off'>, string> = {
+  ok: 'bg-green shadow-[0_0_0_3px_rgb(18_183_106/0.15)]',
+  stale: 'bg-orange shadow-[0_0_0_3px_rgb(245_158_11/0.18)]',
+  error: 'bg-red shadow-[0_0_0_3px_rgb(240_68_56/0.15)]',
+};
+
+export function Sidebar({ counts, lastSync, nptel }: { counts: ShellCounts; lastSync: number | null; nptel: Health }) {
   const isActive = useActive();
   const now = useNow(30_000);
   return (
@@ -59,9 +66,10 @@ export function Sidebar({ counts, lastSync }: { counts: ShellCounts; lastSync: n
           Manipal LMS
           <span className="size-1.5 rounded-full bg-green shadow-[0_0_0_3px_rgb(18_183_106/0.15)]" />
         </div>
-        <div className="flex items-center justify-between px-3 py-2 text-ink-3">
-          NPTEL <span className="text-[11px]">Later</span>
-        </div>
+        <Link href="/dashboard/settings" className={`flex items-center justify-between rounded-[11px] px-3 py-2 hover:bg-sunken ${nptel === 'off' ? 'text-ink-3' : ''}`}>
+          NPTEL
+          {nptel === 'off' ? <span className="text-[11px]">Set up</span> : <span className={`size-1.5 rounded-full ${DOT[nptel]}`} />}
+        </Link>
         <div className="flex items-center justify-between px-3 py-2 text-ink-3">
           IITM BS <span className="text-[11px]">Later</span>
         </div>

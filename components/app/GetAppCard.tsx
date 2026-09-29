@@ -61,7 +61,7 @@ export function GetAppCard({ apkReady }: { apkReady: boolean }) {
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={{ opacity: 0, y: -10, height: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="-mx-3 -mb-6 overflow-hidden px-3 pb-6"
+          className="-mx-3 -mb-1 overflow-hidden px-3 pb-6"
         >
           <div className="relative flex flex-wrap items-center gap-x-4 gap-y-3.5 rounded-[20px] bg-card p-4 shadow-card sm:flex-nowrap sm:p-5">
             <Tile size={48} className="shrink-0 self-start sm:self-center">

@@ -246,8 +246,8 @@ function ComingFragment() {
   return (
     <div className="relative h-[220px] w-[280px]">
       {[
-        { label: 'NPTEL', glyph: 'N', color: '#f59e0b', className: 'left-0 top-8 -rotate-12' },
-        { label: 'IITM BS', glyph: 'I', color: '#b42318', className: 'right-0 top-8 rotate-12' },
+        { label: 'NPTEL', glyph: 'N', color: '#f59e0b', live: true, className: 'left-0 top-8 -rotate-12' },
+        { label: 'IITM BS', glyph: 'I', color: '#b42318', live: false, className: 'right-0 top-8 rotate-12' },
       ].map((s) => (
         <div key={s.label} className={`absolute flex w-[118px] flex-col items-center gap-2 rounded-[18px] bg-white p-4 shadow-card ${s.className}`}>
           <Tile size={64}>
@@ -256,7 +256,7 @@ function ComingFragment() {
             </span>
           </Tile>
           <span className="text-[13px] font-medium">{s.label}</span>
-          <span className="rounded-full bg-[#f0f0f3] px-2 py-0.5 text-[11px] text-ink-2">Soon</span>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] ${s.live ? 'bg-green/12 font-medium text-green' : 'bg-[#f0f0f3] text-ink-2'}`}>{s.live ? 'Live' : 'Soon'}</span>
         </div>
       ))}
       <div className="absolute left-1/2 top-0 -translate-x-1/2">
@@ -285,7 +285,7 @@ export function Features() {
       <Feature className="lg:col-span-7" title="Done from the notification" body="Tap Mark done without opening the app, and the rest of that task's reminders are cancelled.">
         <NotificationFragment />
       </Feature>
-      <Feature className="lg:col-span-5" dashed title="NPTEL and IITM BS next" body="The same list will cover your NPTEL and IITM BS deadlines too.">
+      <Feature className="lg:col-span-5" dashed title="NPTEL too, IITM BS next" body="A small Chrome extension brings in your NPTEL assignments. IITM BS deadlines are next.">
         <ComingFragment />
       </Feature>
     </div>

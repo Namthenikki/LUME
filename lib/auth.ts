@@ -49,6 +49,18 @@ export function ownerCookieOptions(https: boolean) {
   };
 }
 
+/**
+ * The key the NPTEL Chrome extension sends. It can only post NPTEL deadlines, so the extension
+ * never holds CRON_SECRET. Settings shows it; changing AUTH_SECRET replaces it.
+ */
+export function nptelKey(): string {
+  return sign('ingest:nptel:v1');
+}
+
+export function isNptelRequest(request: Request): boolean {
+  return safeEqual(request.headers.get('authorization') ?? '', `Bearer ${nptelKey()}`);
+}
+
 /** Per-task token carried in each notification, so its buttons work from the service worker. */
 export function actionToken(taskId: string): string {
   return sign(`action:${taskId}`);

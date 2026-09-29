@@ -45,7 +45,7 @@ export function NotificationPrompt() {
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={{ opacity: 0, y: -10, height: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="-mx-3 -mb-6 overflow-hidden px-3 pb-6"
+          className="-mx-3 -mb-1 overflow-hidden px-3 pb-6"
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3.5 rounded-[20px] bg-linear-to-br from-blue to-[#4f8ff8] p-4 text-white sm:flex-nowrap sm:p-5">
             <span className="grid size-11 shrink-0 place-items-center self-start rounded-[13px] bg-white/15 sm:size-12 sm:self-center">

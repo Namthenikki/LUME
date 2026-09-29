@@ -3,13 +3,16 @@ import { AndroidCard } from '@/components/app/AndroidCard';
 import { PageHeader } from '@/components/app/PageHeader';
 import { listAlarmDevices } from '@/lib/alarm-devices';
 import androidRelease from '@/lib/android-release.json';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { NptelSource } from '@/components/app/NptelSource';
 import { AppearanceCard, InstallCard, NotificationsCard } from '@/components/app/SettingsCards';
 import { Tile } from '@/components/landing/widgets';
 import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 import { SyncButton } from '@/components/app/SyncButton';
 import { Panel } from '@/components/app/ui';
+import { nptelKey } from '@/lib/auth';
 import { countDevices } from '@/lib/push';
+import { nptelHealth } from '@/lib/source-health';
 import { getSyncStatus } from '@/lib/sync';
 import { formatIST } from '@/lib/time';
 import { lockAction } from '../actions';
@@ -18,8 +21,17 @@ export const metadata = { title: 'Settings · Lume' };
 
 export default async function SettingsPage() {
   await connection();
-  const [devices, sync, jar, phones] = await Promise.all([countDevices(), getSyncStatus('manipal'), cookies(), listAlarmDevices()]);
+  const [devices, sync, nptel, jar, head, phones] = await Promise.all([
+    countDevices(),
+    getSyncStatus('manipal'),
+    getSyncStatus('nptel'),
+    cookies(),
+    headers(),
+    listAlarmDevices(),
+  ]);
   const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
+  // The extension's connection code: this app's address and its NPTEL key, pasted in one go.
+  const origin = `${head.get('x-forwarded-proto') ?? 'http'}://${head.get('host')}`;
 
   return (
     <div className="space-y-5 lg:space-y-6">
@@ -51,23 +63,16 @@ export default async function SettingsPage() {
                   <p className="text-[13px] text-ink-3">Checked every hour, across all your courses.</p>
                 </div>
               </li>
-              {[
-                // Same glyphs and colors as the Sources card on the landing page
-                { name: 'NPTEL', glyph: 'N', color: '#f59e0b' },
-                { name: 'IITM BS', glyph: 'I', color: '#b42318' },
-              ].map((s) => (
-                <li key={s.name} className="flex items-center gap-3 border-t border-line py-3">
-                  <Tile size={46} className="shrink-0">
-                    <span className="text-[20px] font-bold tracking-[-0.04em]" style={{ color: s.color }}>
-                      {s.glyph}
-                    </span>
-                  </Tile>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{s.name}</p>
-                    <p className="text-[13px] text-ink-2">Coming later.</p>
-                  </div>
-                </li>
-              ))}
+              <NptelSource health={nptelHealth(nptel, Date.now())} at={nptel?.at ?? null} message={nptel?.message ?? null} code={`${origin}#${nptelKey()}`} />
+              <li className="flex items-center gap-3 border-t border-line py-3">
+                <Tile size={46} className="shrink-0">
+                  <span className="text-[20px] font-bold tracking-[-0.04em] text-[#b42318]">I</span>
+                </Tile>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">IITM BS</p>
+                  <p className="text-[13px] text-ink-2">Coming later.</p>
+                </div>
+              </li>
             </ul>
           </Panel>
 

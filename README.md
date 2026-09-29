@@ -1,7 +1,7 @@
 # Lume
 
-A personal deadline manager. Lume reads every assignment and quiz deadline from the Manipal LMS on
-its own, shows them in one dashboard, and reminds you more often as each deadline gets close, until
+A personal deadline manager. Lume reads every assignment and quiz deadline from the Manipal LMS and
+NPTEL on its own, shows them in one dashboard, and reminds you more often as each deadline gets close, until
 you mark it done. On Android it also **rings like an alarm** 30 and 10 minutes before a deadline.
 
 It's a web app (installable as a PWA) plus a small Android app that wraps it (a Trusted Web
@@ -10,15 +10,17 @@ Activity) and adds the alarms. It's for one person: you.
 ## How it works
 
 ```
-MUJ LMS calendar feed ──(hourly)──▶ /api/sync ──▶ Firestore `tasks` ──▶ dashboard
-                                          └─ "New" / "Deadline changed" push
+MUJ LMS calendar feed ──(hourly)──▶ /api/sync ──────────┐
+Chrome extension on the laptop ──(3-hourly)──▶ /api/ingest/nptel ──┴─▶ Firestore `tasks` ──▶ dashboard
+                                                                     └─ "New" / "Deadline changed" push
 Scheduler ──(every 5 min)──▶ /api/remind ──▶ FCM ──▶ service worker ──▶ notification
                                                         └─ Mark done / Remind in 2h ─▶ /api/tasks/[id]/action
 Android app ──(every 15 min + on launch)──▶ /api/alarms ──▶ exact alarms on the phone ──▶ full-screen alarm
 ```
 
-- **Sources** implement one interface (`lib/sources/types.ts`). Today there is `ManipalIcsAdapter`,
-  which reads the Brightspace calendar feed and merges a quiz's "Available / Ends / Due" events into one task.
+- **Sources** implement one interface (`lib/sources/types.ts`). `ManipalIcsAdapter` reads the Brightspace
+  calendar feed and merges a quiz's "Available / Ends / Due" events into one task. `NptelAdapter` takes
+  what the Chrome extension sends (see [NPTEL](#nptel-chrome-extension)).
 - **Sync** (`lib/sync.ts`) adds new tasks, updates changed deadlines, and marks tasks that vanished
   from the LMS as cancelled. Anything already past when first seen is ignored.
 - **Reminders** (`lib/remind.ts`, `lib/stages.ts`) fire once each: 48h, 24h, 9 AM on the day, 6h, 3h,
@@ -150,18 +152,40 @@ same notifications but no alarm.
 - `/dashboard` needs the unlock cookie (`proxy.ts`): an httpOnly, year-long cookie holding an HMAC
   signed with `AUTH_SECRET`. Lock a device from Settings.
 - `/api/sync` and `/api/remind` need `CRON_SECRET`.
+- `/api/ingest/nptel` needs the NPTEL key: an HMAC of a fixed value with `AUTH_SECRET`, shown only in
+  Settings. It can only add NPTEL deadlines, so the extension never holds `CRON_SECRET`.
 - Notification and alarm buttons call `/api/tasks/[id]/action` with a per-task signed token, so they
   work without opening the app, and nobody can forge one.
 - The Android app reads `/api/alarms` with a random device token that you approve by opening the app
   while unlocked. Only a hash of it is stored. **Settings → Android app → Stop alarms** unpairs every phone.
 - Firestore rules deny all browser access.
 
+## NPTEL (Chrome extension)
+
+NPTEL has no calendar feed, and its login (SWAYAM single sign-on) can't be scripted from a server. So a
+small Chrome extension (`extension/`) does it from your laptop's Chrome, where you're already logged in:
+
+- Every 3 hours while Chrome is open (and when Chrome starts, or you open a course), it calls the same
+  JSON API NPTEL's course pages use: `/e-learning/api/courseoutline` for each course's assignments, then
+  `/e-learning/api/assessment` (or `programming_assessment`) for each one's due date.
+- It posts them to `/api/ingest/nptel`, and they sync like LMS tasks: same reminders, alarms and pushes.
+- An MCQ assignment you've submitted on NPTEL is marked done in Lume. Programming assignments aren't,
+  because a test run looks the same as a submission there; tick those yourself.
+- If you're signed out of NPTEL, your phone gets one "NPTEL sync stopped" notification, and Home shows
+  it until the next good sync. Home also warns after 2 days without a sync.
+
+Set up: **Settings → Sources → NPTEL** has the download, the steps, and the connection code (your Lume
+address and NPTEL key). Courses are found by opening them once on NPTEL, or added in the extension's
+popup. Chrome on phones can't run extensions; the phone gets everything through Lume as usual.
+
+After changing `extension/`, run `npm run extension:zip` to rebuild the download in `public/downloads/`.
+
 ## Email sources (not connected yet)
 
 `lib/gmail-bridge.ts`, `lib/inbox.ts`, `lib/gemini.ts` and `/api/ingest/email` form a pipeline for
 sources that email their deadlines: a Google Apps Script in your Gmail posts matching emails to Lume,
 Gemini extracts `{ course, title, dueAt }`, and they sync like any other task. It's parked because
-NPTEL's emails don't reach this Gmail. IITM BS can use it: add its sender to `SEARCHES` and
+NPTEL's emails don't reach this Gmail (NPTEL uses the Chrome extension instead). IITM BS can use it: add its sender to `SEARCHES` and
 `new EmailDeadlinesAdapter('iitm')` to `emailAdapters()` in `lib/sources/index.ts`.
 
 ## Adding the next source
@@ -175,6 +199,8 @@ missing from it are marked cancelled). Register it in `adapters()` in `lib/sourc
 
 - **Settings says the LMS "Needs attention"**: the feed link probably expired. Subscribe again in the
   LMS and update `MUJ_ICS_URL`.
+- **NPTEL "Needs attention"**: open the extension's popup. "Signed out" means log in to NPTEL in that
+  Chrome. "Wrong key" means copy the connection code from Settings again (it changes if `AUTH_SECRET` does).
 - **No notifications**: check Settings → Notifications is on for the device, send a test, and make
   sure the scheduler calls `/api/remind` with the right header.
 - **"Reminders aren't set up yet"**: the `NEXT_PUBLIC_FIREBASE_*` variables are missing from the build.

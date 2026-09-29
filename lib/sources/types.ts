@@ -13,6 +13,8 @@ export interface RawTask {
   /** When a quiz window opens, if the source says. */
   opensAt: Date | null;
   url: string | null;
+  /** The source says it has been submitted (NPTEL does); the task is then marked done. */
+  submitted?: boolean;
 }
 
 export interface SourceAdapter {

@@ -8,7 +8,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "android:release": "node scripts/build-android.mjs"
+    "android:release": "node scripts/build-android.mjs",
+    "extension:zip": "node scripts/build-extension.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",

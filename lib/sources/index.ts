@@ -4,8 +4,8 @@ import type { SourceAdapter } from './types';
 
 /**
  * Sources whose deadlines arrive by email, through the Gmail bridge (lib/gmail-bridge.ts).
- * None are connected yet: NPTEL's emails don't reach the owner's Gmail. IITM BS can plug in here
- * with `new EmailDeadlinesAdapter('iitm')` (lib/inbox.ts).
+ * None are connected yet. IITM BS can plug in here with `new EmailDeadlinesAdapter('iitm')`
+ * (lib/inbox.ts). NPTEL isn't here: its Chrome extension pushes to /api/ingest/nptel instead.
  */
 export function emailAdapters(): SourceAdapter[] {
   return [];

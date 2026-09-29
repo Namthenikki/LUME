@@ -7,7 +7,7 @@ import { pastStages } from './stages';
 import { type TaskDoc, taskId } from './tasks';
 
 export type SyncChange = {
-  kind: 'new' | 'changed' | 'cancelled';
+  kind: 'new' | 'changed' | 'cancelled' | 'submitted';
   id: string;
   course: string;
   title: string;
@@ -33,12 +33,11 @@ export async function runSync(adapters: SourceAdapter[], now = new Date()): Prom
       } catch (err) {
         result = { source: adapter.source, ok: false, error: err instanceof Error ? err.message : String(err) };
       }
-      const status: SyncStatus = {
+      await setSyncStatus(adapter.source, {
         at: now.getTime(),
         ok: result.ok,
         message: result.ok ? `${result.inFeed} items in the feed, ${result.changes.length} changes` : result.error,
-      };
-      await db().collection('meta').doc(`sync-${adapter.source}`).set(status);
+      });
       return result;
     }),
   );
@@ -47,6 +46,10 @@ export async function runSync(adapters: SourceAdapter[], now = new Date()): Prom
 export async function getSyncStatus(source: string): Promise<SyncStatus | null> {
   const doc = await db().collection('meta').doc(`sync-${source}`).get();
   return doc.exists ? (doc.data() as SyncStatus) : null;
+}
+
+export async function setSyncStatus(source: string, status: SyncStatus): Promise<void> {
+  await db().collection('meta').doc(`sync-${source}`).set(status);
 }
 
 async function syncSource(adapter: SourceAdapter, now: Date) {
@@ -78,27 +81,34 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
         ...info,
         dueAt,
         opensAt,
-        status: 'pending',
+        // Already submitted when first seen: straight to Done, without a "New" notification.
+        status: t.submitted ? 'done' : 'pending',
         createdAt: prev?.createdAt ?? nowTs,
         updatedAt: nowTs,
         // "new" is sent right after this sync commits.
         notifiedStages: ['new', ...pastStages(t.dueAt, now)],
         snoozedUntil: null,
-        doneAt: null,
+        doneAt: t.submitted ? nowTs : null,
       };
       batch.set(tasks.doc(id), doc);
-      changes.push({ kind: 'new', ...change });
+      changes.push({ kind: t.submitted ? 'submitted' : 'new', ...change });
       continue;
     }
+
+    // Submitted on the source since the last sync: done, so its reminders stop.
+    const submittedNow = !!t.submitted && prev.status === 'pending';
 
     const dueChanged = !prev.dueAt.isEqual(dueAt);
     const infoChanged =
       JSON.stringify([prev.course, prev.title, prev.type, prev.url, prev.opensAt?.toMillis()]) !==
       JSON.stringify([info.course, info.title, info.type, info.url, opensAt?.toMillis()]);
-    if (!dueChanged && !infoChanged) continue;
+    if (!dueChanged && !infoChanged && !submittedNow) continue;
 
     const update: Partial<TaskDoc> = { ...info, opensAt, dueAt, updatedAt: nowTs };
-    if (dueChanged && prev.status === 'pending') {
+    if (submittedNow) {
+      Object.assign(update, { status: 'done', doneAt: nowTs, snoozedUntil: null });
+      changes.push({ kind: 'submitted', ...change });
+    } else if (dueChanged && prev.status === 'pending') {
       // Reminders restart against the new deadline; stages already past for it are skipped.
       const alreadyNew = prev.notifiedStages.includes('new') ? (['new'] as const) : [];
       update.notifiedStages = [...alreadyNew, ...pastStages(t.dueAt, now)];

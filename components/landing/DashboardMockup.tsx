@@ -168,8 +168,8 @@ function Sidebar() {
         <span className={item}>
           Manipal LMS <span className="size-1.5 rounded-full bg-green" />
         </span>
-        <span className={`${item} text-ink-3`}>
-          NPTEL <span className="text-[11px]">Soon</span>
+        <span className={item}>
+          NPTEL <span className="size-1.5 rounded-full bg-green" />
         </span>
         <span className={`${item} text-ink-3`}>
           IITM BS <span className="text-[11px]">Soon</span>
