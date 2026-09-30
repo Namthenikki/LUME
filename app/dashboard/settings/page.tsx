@@ -12,6 +12,7 @@ import { SyncButton } from '@/components/app/SyncButton';
 import { Panel } from '@/components/app/ui';
 import { nptelKey } from '@/lib/auth';
 import { countDevices } from '@/lib/push';
+import { lastReminderCheck } from '@/lib/remind';
 import { nptelHealth } from '@/lib/source-health';
 import { getSyncStatus } from '@/lib/sync';
 import { formatIST } from '@/lib/time';
@@ -21,8 +22,9 @@ export const metadata = { title: 'Settings · Lume' };
 
 export default async function SettingsPage() {
   await connection();
-  const [devices, sync, nptel, jar, head, phones] = await Promise.all([
+  const [devices, lastCheck, sync, nptel, jar, head, phones] = await Promise.all([
     countDevices(),
+    lastReminderCheck(),
     getSyncStatus('manipal'),
     getSyncStatus('nptel'),
     cookies(),
@@ -39,7 +41,7 @@ export default async function SettingsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="appear space-y-4">
-          <NotificationsCard devices={devices} />
+          <NotificationsCard devices={devices} lastCheck={lastCheck} />
           <AndroidCard phones={phones} apkReady={androidRelease.origin !== null} />
           <AppearanceCard theme={theme} />
           <InstallCard />

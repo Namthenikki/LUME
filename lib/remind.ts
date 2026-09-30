@@ -1,4 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import { after } from 'next/server';
+import { db } from './firebase-admin';
 import { reminderPush } from './notify';
 import { pushToAll } from './push';
 import { stageTimes } from './stages';
@@ -38,4 +40,33 @@ export async function runReminders(now = new Date()): Promise<RemindResult> {
   }
 
   return { checked: snap.size, sent };
+}
+
+const lastRun = () => db().collection('meta').doc('remind');
+
+/**
+ * Runs the reminders unless a run started in the last minute. The scheduler calls this every
+ * 5 minutes, and so do the app and the Android alarm sync whenever they talk to Lume, so a late or
+ * skipped scheduler run doesn't delay reminders. The claim is a transaction, so two callers at
+ * the same moment can't both send the same reminder.
+ */
+export async function runRemindersIfIdle(now = new Date()): Promise<RemindResult | null> {
+  const claimed = await db().runTransaction(async (tx) => {
+    const doc = await tx.get(lastRun());
+    if (doc.exists && now.getTime() - (doc.get('at') as number) < 60_000) return false;
+    tx.set(lastRun(), { at: now.getTime() });
+    return true;
+  });
+  return claimed ? runReminders(now) : null;
+}
+
+/** Checks reminders after the current response is sent, so the caller isn't slowed down. */
+export function remindAfterResponse(): void {
+  after(() => runRemindersIfIdle().catch((err) => console.error('Reminder check failed', err)));
+}
+
+/** When reminders were last checked, for Settings. */
+export async function lastReminderCheck(): Promise<number | null> {
+  const doc = await lastRun().get();
+  return doc.exists ? (doc.get('at') as number) : null;
 }

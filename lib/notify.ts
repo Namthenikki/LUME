@@ -1,5 +1,5 @@
 import type { Push } from './push';
-import { type Stage, STAGES, STICKY_STAGES } from './stages';
+import { type Stage, STAGES, STICKY_STAGES, stageTimes } from './stages';
 import { formatIST, HOUR } from './time';
 
 type TaskInfo = { id: string; course: string; title: string; type: string; dueAt: Date };
@@ -34,9 +34,12 @@ function timeLeft(t: TaskInfo, now: Date): string {
 export function reminderPush(t: TaskInfo, stages: Stage[], snoozeEnded: boolean, now: Date): Push {
   const latest = STAGES.filter((s) => stages.includes(s)).at(-1);
   const overdue = latest === 'overdue';
+  // A stage sent well after its time ("Due tomorrow" arriving on the day) says the real time left instead.
+  const latestAt = stageTimes(t.dueAt).find(([s]) => s === latest)?.[1];
+  const late = !overdue && latestAt !== undefined && now.getTime() - latestAt.getTime() > 20 * 60_000;
   return {
     taskId: t.id,
-    title: latest ? STAGE_TITLE[latest](t) : timeLeft(t, now),
+    title: latest && !late ? STAGE_TITLE[latest](t) : timeLeft(t, now),
     body: overdue ? `${t.course}. It was due ${formatIST(t.dueAt)}.` : detail(t),
     sticky: !overdue && (stages.some((s) => STICKY.includes(s)) || (snoozeEnded && t.dueAt.getTime() - now.getTime() < 6 * HOUR)),
   };

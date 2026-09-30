@@ -8,6 +8,7 @@ import { Tile } from '../landing/widgets';
 import { promptInstall, useInstallPrompt } from './AppBoot';
 import { BellIcon } from './icons';
 import { disablePush, enablePush, type PushState, pushState } from './push-client';
+import { ago, useNow } from './time';
 import { Panel } from './ui';
 
 const STATE_TEXT: Record<PushState, string> = {
@@ -35,7 +36,12 @@ function Toggle({ on, busy, onChange }: { on: boolean; busy: boolean; onChange: 
   );
 }
 
-export function NotificationsCard({ devices }: { devices: number }) {
+/** Reminders are checked every 5 minutes; half an hour without a check means the scheduler stopped. */
+const CHECK_OVERDUE_MS = 30 * 60_000;
+
+export function NotificationsCard({ devices, lastCheck }: { devices: number; lastCheck: number | null }) {
+  const now = useNow(30_000);
+  const stalled = now !== null && (lastCheck === null || now - lastCheck > CHECK_OVERDUE_MS);
   const [state, setState] = useState<PushState>('loading');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -81,9 +87,18 @@ export function NotificationsCard({ devices }: { devices: number }) {
         {canToggle && <Toggle on={state === 'on'} busy={busy} onChange={toggle} />}
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-        <p className="text-[13px] text-ink-2">
-          {devices} {devices === 1 ? 'device gets' : 'devices get'} reminders
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] text-ink-2">
+            {devices} {devices === 1 ? 'device gets' : 'devices get'} reminders
+          </p>
+          {now !== null && (
+            <p className={`text-[12px] ${stalled ? 'font-medium text-red' : 'text-ink-3'}`}>
+              {stalled
+                ? `Reminders ${lastCheck ? `last checked ${ago(lastCheck, now)}` : 'never checked'}. The scheduler isn’t running.`
+                : `Checked for due reminders ${ago(lastCheck!, now)}`}
+            </p>
+          )}
+        </div>
         <button type="button" onClick={test} disabled={busy} className="h-10 rounded-[12px] bg-chip px-4 text-[13px] font-medium disabled:opacity-60">
           Send a test
         </button>

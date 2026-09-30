@@ -1,7 +1,8 @@
 import { isCronRequest } from '@/lib/auth';
-import { runReminders } from '@/lib/remind';
+import { runRemindersIfIdle } from '@/lib/remind';
 
 export async function GET(request: Request) {
   if (!isCronRequest(request)) return new Response('Unauthorized', { status: 401 });
-  return Response.json(await runReminders());
+  // null: another caller ran them less than a minute ago.
+  return Response.json((await runRemindersIfIdle()) ?? { skipped: 'ran less than a minute ago' });
 }

@@ -91,19 +91,22 @@ npm run dev             # http://localhost:3000
 Vercel's free plan only allows a cron job **once a day** (checked September 2026), so the frequent
 triggers come from outside.
 
-**cron-job.org (recommended, free, minute-accurate).** Create two jobs:
+**GitHub Actions (what this repo uses).** `.github/workflows/cron.yml` calls `/api/remind` every 5 minutes
+and `/api/sync` every hour. The repo is public, so the runs are free. It needs one repository secret,
+`CRON_SECRET` (Settings → Secrets and variables → Actions); `APP_URL` is optional and defaults to the
+deployed address. Until the secret is added, runs only log a warning.
 
-| URL | Schedule | Header |
-| --- | --- | --- |
-| `https://<your-app>/api/sync` | every hour | `Authorization: Bearer <CRON_SECRET>` |
-| `https://<your-app>/api/remind` | every 5 minutes | `Authorization: Bearer <CRON_SECRET>` |
+**Backup triggers.** GitHub can start scheduled runs late or skip one when busy, so reminders are also
+checked whenever the Android app syncs its alarms (every 15 minutes), the app is opened, the LMS syncs, or
+the NPTEL extension posts. A Firestore lock (`meta/remind`) keeps two checks from sending the same
+reminder, and a reminder that goes out late says the real time left. **Settings → Notifications** shows
+when reminders were last checked, and turns red after 30 minutes without a check.
 
-Every 5 minutes keeps the 30-minute and 10-minute reminders on time. The Android alarms don't depend
-on this: they're set on the phone itself.
+**cron-job.org (alternative, minute-accurate).** Two jobs, each with the header
+`Authorization: Bearer <CRON_SECRET>`: `https://<your-app>/api/remind` every 5 minutes and
+`https://<your-app>/api/sync` every hour.
 
-**GitHub Actions (alternative).** `.github/workflows/cron.yml` does the same. Add repository secrets
-`APP_URL` and `CRON_SECRET`. GitHub can start scheduled runs late, and on a private repo this uses far
-more than the free 2,000 minutes a month.
+The Android alarms don't depend on any of this: they're set on the phone itself.
 
 ## The Android app
 
@@ -202,7 +205,8 @@ missing from it are marked cancelled). Register it in `adapters()` in `lib/sourc
 - **NPTEL "Needs attention"**: open the extension's popup. "Signed out" means log in to NPTEL in that
   Chrome. "Wrong key" means copy the connection code from Settings again (it changes if `AUTH_SECRET` does).
 - **No notifications**: check Settings → Notifications is on for the device, send a test, and make
-  sure the scheduler calls `/api/remind` with the right header.
+  sure the scheduler calls `/api/remind` with the right header (Settings → Notifications says when
+  reminders were last checked; the repo's Actions tab shows the cron runs).
 - **"Reminders aren't set up yet"**: the `NEXT_PUBLIC_FIREBASE_*` variables are missing from the build.
 - **The Android app shows a browser bar**: `/.well-known/assetlinks.json` isn't live for that address.
   Rebuild with `npm run android:release` for the exact URL, and push.
