@@ -5,7 +5,7 @@ import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 import { AppBoot } from '@/components/app/AppBoot';
 import { MobileHeader, Sidebar, TabBar } from '@/components/app/Shell';
 import { nptelHealth } from '@/lib/source-health';
-import { remindAfterResponse } from '@/lib/remind';
+import { catchUpAfterResponse } from '@/lib/catch-up';
 import { upcomingReminders } from '@/lib/stages';
 import { getSyncStatus } from '@/lib/sync';
 import { listTasks } from '@/lib/tasks';
@@ -19,7 +19,7 @@ export const viewport: Viewport = {
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await connection(); // always live data, never prerendered at build time
-  remindAfterResponse(); // opening the app also sends any reminder that's due
+  catchUpAfterResponse(); // opening the app also sends due reminders and refreshes a stale LMS sync
   const [tasks, sync, nptel, jar] = await Promise.all([listTasks(), getSyncStatus('manipal'), getSyncStatus('nptel'), cookies()]);
   const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   const now = Date.now();

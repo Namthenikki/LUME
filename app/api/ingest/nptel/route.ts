@@ -1,6 +1,6 @@
 import { isNptelRequest } from '@/lib/auth';
 import { pushToAll } from '@/lib/push';
-import { remindAfterResponse } from '@/lib/remind';
+import { catchUpAfterResponse } from '@/lib/catch-up';
 import { NptelAdapter, parseNptelPayload } from '@/lib/sources/nptel';
 import { getSyncStatus, runSync, setSyncStatus } from '@/lib/sync';
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const [result] = await runSync([new NptelAdapter(payload)]);
-  remindAfterResponse();
+  catchUpAfterResponse();
   if (!result.ok) return reply({ error: result.error }, 500);
 
   const failed = payload.courses.filter((c) => !c.ok);

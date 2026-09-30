@@ -96,10 +96,12 @@ and `/api/sync` every hour. The repo is public, so the runs are free. It needs o
 `CRON_SECRET` (Settings → Secrets and variables → Actions); `APP_URL` is optional and defaults to the
 deployed address. Until the secret is added, runs only log a warning.
 
-**Backup triggers.** GitHub can start scheduled runs late or skip one when busy, so reminders are also
-checked whenever the Android app syncs its alarms (every 15 minutes), the app is opened, the LMS syncs, or
-the NPTEL extension posts. A Firestore lock (`meta/remind`) keeps two checks from sending the same
-reminder, and a reminder that goes out late says the real time left. **Settings → Notifications** shows
+**Backup triggers** (`lib/catch-up.ts`). GitHub can start scheduled runs late or skip them (on
+30 September 2026 it ran the 5-minute job twice in three hours), so Lume also catches up whenever the
+Android app syncs its alarms (every 15 minutes), the app is opened, or the NPTEL extension posts: it sends
+due reminders, and syncs the LMS if the last sync is over 50 minutes old. Firestore locks (`meta/remind`,
+`meta/sync-lock`) make sure two callers at once never send the same notification twice, and a reminder
+that goes out late says the real time left. **Settings → Notifications** shows
 when reminders were last checked, and turns red after 30 minutes without a check.
 
 **cron-job.org (alternative, minute-accurate).** Two jobs, each with the header

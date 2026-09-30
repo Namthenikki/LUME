@@ -5,11 +5,10 @@ import { refresh } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { isDeviceToken, pairAlarmDevice, unpairAllAlarmDevices } from '@/lib/alarm-devices';
 import { OWNER_COOKIE } from '@/lib/auth';
+import { syncIfStale } from '@/lib/catch-up';
 import { requireOwner } from '@/lib/owner';
 import { pushToAll, removeDevice, saveDevice } from '@/lib/push';
 import { isQuiet } from '@/lib/quiet';
-import { adapters } from '@/lib/sources';
-import { runSync } from '@/lib/sync';
 import { markDone, markPending, snooze } from '@/lib/tasks';
 import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 
@@ -33,7 +32,8 @@ export async function snoozeAction(id: string) {
 
 export async function syncNowAction(): Promise<{ ok: boolean; message: string }> {
   await requireOwner();
-  const results = await runSync(adapters());
+  // A sync that started seconds ago (from another device or the scheduler) already covers this.
+  const results = (await syncIfStale(10_000)) ?? [];
   refresh();
   const failed = results.find((r) => !r.ok);
   if (failed && !failed.ok) return { ok: false, message: failed.error };

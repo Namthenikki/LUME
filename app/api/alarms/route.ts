@@ -1,7 +1,7 @@
 import { isDeviceToken, isPairedAlarmDevice } from '@/lib/alarm-devices';
 import { actionToken } from '@/lib/auth';
 import { isQuiet } from '@/lib/quiet';
-import { remindAfterResponse } from '@/lib/remind';
+import { catchUpAfterResponse } from '@/lib/catch-up';
 import { ALARM_STAGES } from '@/lib/stages';
 import { listTasks } from '@/lib/tasks';
 
@@ -13,8 +13,8 @@ import { listTasks } from '@/lib/tasks';
 export async function GET(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!isDeviceToken(token) || !(await isPairedAlarmDevice(token))) return new Response('Unauthorized', { status: 401 });
-  // The phone checks in every 15 minutes: a free chance to send any reminder the scheduler missed.
-  remindAfterResponse();
+  // The phone checks in every 15 minutes: a chance to catch up on anything the scheduler missed.
+  catchUpAfterResponse();
 
   const now = Date.now();
   const alarms = [];

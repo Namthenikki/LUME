@@ -12,7 +12,7 @@ import { SyncButton } from '@/components/app/SyncButton';
 import { Panel } from '@/components/app/ui';
 import { nptelKey } from '@/lib/auth';
 import { countDevices } from '@/lib/push';
-import { lastReminderCheck } from '@/lib/remind';
+import { lastReminderCheck } from '@/lib/catch-up';
 import { nptelHealth } from '@/lib/source-health';
 import { getSyncStatus } from '@/lib/sync';
 import { formatIST } from '@/lib/time';
