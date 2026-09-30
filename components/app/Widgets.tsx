@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import type { TaskView } from '@/lib/tasks';
 import { upcomingReminders } from '@/lib/stages';
 import { dayIST, formatIST, istDayNumber, timeIST } from '@/lib/time';
@@ -113,11 +113,16 @@ export function NextDeadline({
   );
 }
 
+/**
+ * One progress ring. The value is drawn straight into the markup (dash offset along the
+ * circumference); CSS only animates it in, so the ring is right even before scripts run.
+ */
 function Ring({ r, value, color }: { r: number; value: number; color: string }) {
+  const length = 2 * Math.PI * r;
   return (
     <>
       <circle cx="60" cy="60" r={r} fill="none" stroke="var(--color-chip)" strokeWidth="10" />
-      <motion.circle
+      <circle
         cx="60"
         cy="60"
         r={r}
@@ -126,10 +131,9 @@ function Ring({ r, value, color }: { r: number; value: number; color: string }) 
         strokeWidth="10"
         strokeLinecap="round"
         transform="rotate(-90 60 60)"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: Math.max(value, 0.001) }}
-        transition={{ duration: 1.4, ease, delay: 0.15 }}
-        style={{ opacity: value > 0 ? 1 : 0 }}
+        strokeDasharray={length}
+        className="ring-fill"
+        style={{ strokeDashoffset: length * (1 - Math.min(Math.max(value, 0), 1)), opacity: value > 0 ? 1 : 0, '--ring-length': length } as CSSProperties}
       />
     </>
   );

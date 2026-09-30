@@ -164,9 +164,25 @@ html:has(.app[data-theme='light']) body {
   animation: appear 600ms var(--ease-soft) both;
 }
 
+/* Progress rings fill in from empty on load, then slide to a new value (e.g. after marking a task done). */
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+
+.ring-fill {
+  animation: ring-fill 1.4s var(--ease-soft) 0.15s backwards;
+  transition:
+    stroke-dashoffset 0.9s var(--ease-soft),
+    opacity 0.2s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bob,
-  .appear {
+  .appear,
+  .ring-fill {
     animation: none;
+    transition: none;
   }
 }

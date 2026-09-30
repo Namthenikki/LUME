@@ -86,7 +86,7 @@ export default async function RemindersPage() {
               </li>
             ))}
           </ol>
-          <p className="mt-4 text-[13px] text-ink-3">Each reminder has Mark done and Remind in 2h buttons, right on the notification. With the Android app, your phone also rings like an alarm at 30 and 10 minutes before. Quiet hours, 12 AM to 8 AM: no alarms, and notifications arrive silently.</p>
+          <p className="mt-4 text-[13px] text-ink-3">Each reminder has Mark done and Remind in 2h buttons, right on the notification. With the Android app, your phone also rings like an alarm 12 hours, 6 hours, 30 minutes and 10 minutes before. Quiet hours, 12 AM to 8 AM: no alarms, and notifications arrive silently.</p>
         </Panel>
       </div>
     </div>

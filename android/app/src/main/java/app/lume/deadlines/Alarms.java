@@ -181,7 +181,6 @@ final class Alarms {
         ensureChannel(c);
         String taskId = a.optString("taskId");
         long dueAt = a.optLong("dueAt");
-        long minutes = Math.max(0, Math.round((dueAt - System.currentTimeMillis()) / 60_000.0));
 
         Intent full = new Intent(c, AlarmActivity.class)
                 .putExtra(EXTRA, a.toString())
@@ -192,7 +191,7 @@ final class Alarms {
         Notification n = new NotificationCompat.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_lume)
                 .setColor(ContextCompat.getColor(c, R.color.blue))
-                .setContentTitle(minutes + (minutes == 1 ? " minute" : " minutes") + " left: " + a.optString("title"))
+                .setContentTitle(timeLeft(dueAt) + " left: " + a.optString("title"))
                 .setContentText(a.optString("course") + ". Due " + timeIST(dueAt) + ".")
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -215,6 +214,13 @@ final class Alarms {
     /** Silences a ringing alarm. */
     static void stop(Context c, String taskId) {
         NotificationManagerCompat.from(c).cancel(notificationId(taskId));
+    }
+
+    /** "10 minutes", or whole hours from 90 minutes on ("6 hours", "12 hours"). */
+    static String timeLeft(long dueAt) {
+        long minutes = Math.max(0, Math.round((dueAt - System.currentTimeMillis()) / 60_000.0));
+        if (minutes < 90) return minutes + (minutes == 1 ? " minute" : " minutes");
+        return Math.round(minutes / 60.0) + " hours";
     }
 
     static String timeIST(long ms) {

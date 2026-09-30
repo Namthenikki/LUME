@@ -7,6 +7,8 @@ export type Stage = 'new' | (typeof STAGES)[number];
 /** Stages that stay on screen until acted on. The Android app also rings an alarm at ALARM_STAGES. */
 export const STICKY_STAGES: Stage[] = ['6h', '3h', '1h', '30m', '10m'];
 export const ALARM_STAGES = [
+  { stage: '12h', minutes: 12 * 60 },
+  { stage: '6h', minutes: 6 * 60 },
   { stage: '30m', minutes: 30 },
   { stage: '10m', minutes: 10 },
 ] as const;

@@ -2,7 +2,7 @@
 
 A personal deadline manager. Lume reads every assignment and quiz deadline from the Manipal LMS and
 NPTEL on its own, shows them in one dashboard, and reminds you more often as each deadline gets close, until
-you mark it done. On Android it also **rings like an alarm** 30 and 10 minutes before a deadline.
+you mark it done. On Android it also **rings like an alarm** 12 hours, 6 hours, 30 minutes and 10 minutes before a deadline.
 
 It's a web app (installable as a PWA) plus a small Android app that wraps it (a Trusted Web
 Activity) and adds the alarms. It's for one person: you.
@@ -27,7 +27,7 @@ Android app ──(every 15 min + on launch)──▶ /api/alarms ──▶ exac
   1h, 30 min and 10 min before, and once right after the deadline. Reminders that come due together
   are sent as one notification. From 6h on they stay on screen until you act.
 - **Alarms and reminders** (`android/`): the Android app fetches its schedule and sets exact alarm-clock
-  alarms for 30 and 10 minutes before each deadline. It also sets every other reminder ("6 hours left",
+  alarms for 12 hours, 6 hours, 30 minutes and 10 minutes before each deadline. It also sets every other reminder ("6 hours left",
   "Due today"…) the same way and shows it as a notification at its exact minute, even asleep or offline;
   while it does, Lume skips web-pushing those reminders to the phone, so none arrive twice. When one goes off it rings with the phone's alarm sound
   (or only vibrates, with the phone on silent), repeating until you tap **Mark done** or **Snooze 10 min**.

@@ -79,7 +79,7 @@ export function GetAppCard({ apkReady }: { apkReady: boolean }) {
                     ? 'A new version is ready. It installs over this one, and your alarms stay set.'
                     : 'A new version is ready. This one can’t update itself: download it and open the file to install it over this one.'
                   : mode === 'android'
-                    ? 'It rings like an alarm 30 and 10 minutes before a deadline, until you mark it done.'
+                    ? 'It rings like an alarm 12 hours, 6 hours, 30 minutes and 10 minutes before a deadline.'
                     : 'Open it from your dock or desktop like a regular app.'}
               </p>
             </div>
