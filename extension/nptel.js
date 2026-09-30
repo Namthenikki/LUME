@@ -96,9 +96,8 @@ async function readAssessment(courseId, a, get) {
 
   if (programming) {
     const assignment = j.data?.assignment ?? j.assignment ?? {};
-    // A test run and a real submission look alike here, so programming work is never marked done
-    // automatically; you tick it in Lume.
-    return { due: parseDue(assignment.submission_due_date ?? j.due_date), practice: !!(j.is_practice ?? assignment.is_practice), submitted: false };
+    // Done when NPTEL shows its green tick next to it (state 2 in the outline), the same as quizzes.
+    return { due: parseDue(assignment.submission_due_date ?? j.due_date), practice: !!(j.is_practice ?? assignment.is_practice), submitted: a.state === 2 };
   }
   return {
     due: parseDue(j.due_date),
@@ -135,7 +134,8 @@ export async function readCourse(courseId, { get = fetchJson, cache = {}, now = 
     const cacheKey = `${courseId}/${key}`;
     const known = cache[cacheKey];
     const settled = known && (known.practice || (known.due && known.due < now - 3 * DAY));
-    const info = settled ? { due: known.due ? new Date(known.due) : null, practice: known.practice, submitted: known.submitted } : await readAssessment(courseId, a, get);
+    // The outline is read fresh every run, so a green tick counts even for an assignment read from the cache.
+    const info = settled ? { due: known.due ? new Date(known.due) : null, practice: known.practice, submitted: known.submitted || a.state === 2 } : await readAssessment(courseId, a, get);
     if (info.hidden) return; // not released yet
     cache[cacheKey] = { due: info.due?.getTime() ?? null, practice: info.practice, submitted: info.submitted };
     if (!info.due || info.practice) return;

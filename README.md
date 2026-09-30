@@ -176,8 +176,7 @@ small Chrome extension (`extension/`) does it from your laptop's Chrome, where y
   JSON API NPTEL's course pages use: `/e-learning/api/courseoutline` for each course's assignments, then
   `/e-learning/api/assessment` (or `programming_assessment`) for each one's due date.
 - It posts them to `/api/ingest/nptel`, and they sync like LMS tasks: same reminders, alarms and pushes.
-- An MCQ assignment you've submitted on NPTEL is marked done in Lume. Programming assignments aren't,
-  because a test run looks the same as a submission there; tick those yourself.
+- An assignment with NPTEL's green tick (quiz or programming) is marked done in Lume.
 - If you're signed out of NPTEL, your phone gets one "NPTEL sync stopped" notification, and Home shows
   it until the next good sync. Home also warns after 2 days without a sync.
 
