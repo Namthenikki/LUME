@@ -26,8 +26,10 @@ Android app ──(every 15 min + on launch)──▶ /api/alarms ──▶ exac
 - **Reminders** (`lib/remind.ts`, `lib/stages.ts`) fire once each: 48h, 24h, 9 AM on the day, 6h, 3h,
   1h, 30 min and 10 min before, and once right after the deadline. Reminders that come due together
   are sent as one notification. From 6h on they stay on screen until you act.
-- **Alarms** (`android/`): the Android app fetches the alarm schedule and sets exact alarm-clock alarms
-  for 30 and 10 minutes before each deadline. When one goes off it rings with the phone's alarm sound
+- **Alarms and reminders** (`android/`): the Android app fetches its schedule and sets exact alarm-clock
+  alarms for 30 and 10 minutes before each deadline. It also sets every other reminder ("6 hours left",
+  "Due today"…) the same way and shows it as a notification at its exact minute, even asleep or offline;
+  while it does, Lume skips web-pushing those reminders to the phone, so none arrive twice. When one goes off it rings with the phone's alarm sound
   (or only vibrates, with the phone on silent), repeating until you tap **Mark done** or **Snooze 10 min**.
   On a locked phone it opens a full-screen alarm. Before ringing it checks the task is still pending.
 - **Dashboard** (`app/dashboard`): Home, Reminders, Done and Settings. Phone-first, light by default,

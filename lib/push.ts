@@ -14,6 +14,8 @@ export type Push = {
   sticky?: boolean;
   /** A test the owner asked for: plays the notification sound even in quiet hours. */
   test?: boolean;
+  /** Leave out the Lume Android app's own browser: the app shows this reminder itself. */
+  skipAppDevices?: boolean;
 };
 
 const devices = () => db().collection('devices');
@@ -37,8 +39,10 @@ export async function countDevices(): Promise<number> {
  * worker draws it (with action buttons). Devices whose tokens FCM rejects are forgotten.
  */
 export async function pushToAll(push: Push): Promise<{ sent: number; failed: number }> {
-  const snap = await devices().get();
-  if (snap.empty) return { sent: 0, failed: 0 };
+  const all = await devices().get();
+  // Devices registered from inside the installed app are labelled "… (app)" (components/app/push-client.ts).
+  const docs = push.skipAppDevices ? all.docs.filter((d) => !String(d.get('label')).endsWith('(app)')) : all.docs;
+  if (docs.length === 0) return { sent: 0, failed: 0 };
 
   // In quiet hours notifications still arrive, but without sound or vibration, and never stick.
   const quiet = !push.test && isQuiet(Date.now());
@@ -56,7 +60,7 @@ export async function pushToAll(push: Push): Promise<{ sent: number; failed: num
   }
 
   const result = await getMessaging().sendEach(
-    snap.docs.map((d) => ({
+    docs.map((d) => ({
       token: d.get('token') as string,
       data,
       webpush: { headers: { Urgency: 'high', TTL: String(6 * 3600) } },
@@ -64,7 +68,7 @@ export async function pushToAll(push: Push): Promise<{ sent: number; failed: num
   );
 
   const stale = result.responses
-    .map((r, i) => (!r.success && /registration-token-not-registered|invalid-registration-token|invalid-argument/.test(r.error?.code ?? '') ? snap.docs[i].ref : null))
+    .map((r, i) => (!r.success && /registration-token-not-registered|invalid-registration-token|invalid-argument/.test(r.error?.code ?? '') ? docs[i].ref : null))
     .filter((ref) => ref !== null);
   await Promise.all(stale.map((ref) => ref.delete()));
 

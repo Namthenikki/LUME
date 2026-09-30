@@ -17,6 +17,7 @@ public class LumeLauncherActivity extends LauncherActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Alarms.ensureChannel(this);
+        Reminders.ensureChannel(this);
         SyncWorker.enqueue(this);
         PermissionActivity.askIfNeeded(this);
     }

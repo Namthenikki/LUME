@@ -20,12 +20,23 @@ export async function pairAlarmDevice(token: string, label: string): Promise<voi
   await devices().doc(idOf(token)).set({ label: label.slice(0, 80), pairedAt: now, lastSeenAt: now }, { merge: true });
 }
 
-export async function isPairedAlarmDevice(token: string): Promise<boolean> {
+/** `reminders`: this version of the app shows deadline reminders itself (see phoneShowsReminders). */
+export async function isPairedAlarmDevice(token: string, reminders = false): Promise<boolean> {
   const ref = devices().doc(idOf(token));
   const doc = await ref.get();
   if (!doc.exists) return false;
-  await ref.update({ lastSeenAt: Timestamp.now() });
+  await ref.update({ lastSeenAt: Timestamp.now(), reminders });
   return true;
+}
+
+/**
+ * True while a phone whose app shows reminders itself has checked in within the last 3 hours. Web
+ * pushes of reminders then skip that phone's browser, so it doesn't get each one twice. If the app
+ * goes quiet (uninstalled, or an old version), web pushes take over again.
+ */
+export async function phoneShowsReminders(): Promise<boolean> {
+  const snap = await devices().where('reminders', '==', true).get();
+  return snap.docs.some((d) => Date.now() - (d.get('lastSeenAt') as Timestamp).toMillis() < 3 * 3_600_000);
 }
 
 export async function listAlarmDevices(): Promise<{ label: string; lastSeenAt: number }[]> {

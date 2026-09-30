@@ -8,8 +8,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * An alarm went off. Before ringing, ask Lume (briefly) whether the task is still pending, so a task
- * marked done since the last sync stays quiet. If Lume can't be reached, ring anyway.
+ * An alarm or a reminder is due. First ask Lume (briefly) whether the task is still pending, so a
+ * task marked done since the last sync stays quiet. If Lume can't be reached, go ahead anyway.
  */
 public class AlarmReceiver extends BroadcastReceiver {
     @Override
@@ -25,7 +25,9 @@ public class AlarmReceiver extends BroadcastReceiver {
             Alarms.ring(app, alarm); // the test alarm has no task to check, and rings even at night
             return;
         }
-        if (Alarms.isQuietNow()) return; // quiet hours: e.g. a snooze that lands after midnight
+        boolean reminder = Reminders.isReminder(alarm);
+        // Quiet hours: alarms don't ring (e.g. a snooze that lands after midnight); reminders still show, silently.
+        if (!reminder && Alarms.isQuietNow()) return;
         PendingResult result = goAsync();
         new Thread(() -> {
             try {
@@ -39,7 +41,8 @@ public class AlarmReceiver extends BroadcastReceiver {
                 } catch (Exception offline) {
                     // No connection: better to ring for a finished task than miss a deadline.
                 }
-                if (ring) Alarms.ring(app, alarm);
+                if (ring && reminder) Reminders.show(app, alarm);
+                else if (ring) Alarms.ring(app, alarm);
             } finally {
                 result.finish();
             }

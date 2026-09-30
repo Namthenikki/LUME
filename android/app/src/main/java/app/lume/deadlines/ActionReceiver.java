@@ -12,10 +12,14 @@ import androidx.core.app.NotificationManagerCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** "Mark done" and "Snooze 10 min", from the alarm notification or the alarm screen. */
+/**
+ * "Mark done" and "Snooze 10 min" from an alarm (notification or full screen), and "Mark done" and
+ * "Remind in 2h" from a reminder.
+ */
 public class ActionReceiver extends BroadcastReceiver {
     static final String DONE = "app.lume.deadlines.DONE";
     static final String SNOOZE = "app.lume.deadlines.SNOOZE";
+    static final String REMIND_LATER = "app.lume.deadlines.REMIND_LATER";
 
     static Intent intent(Context c, String action, JSONObject alarm) {
         return new Intent(c, ActionReceiver.class)
@@ -39,10 +43,24 @@ public class ActionReceiver extends BroadcastReceiver {
         Context app = context.getApplicationContext();
         String taskId = alarm.optString("taskId");
         Alarms.stop(app, taskId);
+        Reminders.cancel(app, taskId);
         app.sendBroadcast(new Intent(AlarmActivity.CLOSE).setPackage(app.getPackageName()));
 
         if (SNOOZE.equals(intent.getAction())) {
             Alarms.snooze(app, alarm);
+            return;
+        }
+        if (REMIND_LATER.equals(intent.getAction())) {
+            // Lume snoozes the task for 2 hours; the next sync moves its reminders and alarms.
+            PendingResult result = goAsync();
+            new Thread(() -> {
+                try {
+                    if (Api.postAction(taskId, "snooze", alarm.optString("actionToken"))) SyncWorker.syncNow(app);
+                    else notifyFailure(app, alarm, "Couldn't snooze " + alarm.optString("title"));
+                } finally {
+                    result.finish();
+                }
+            }).start();
             return;
         }
         if (DONE.equals(intent.getAction())) {
@@ -51,7 +69,9 @@ public class ActionReceiver extends BroadcastReceiver {
             PendingResult result = goAsync();
             new Thread(() -> {
                 try {
-                    if (!Api.postAction(taskId, "done", alarm.optString("actionToken"))) notifyFailure(app, alarm);
+                    if (!Api.postAction(taskId, "done", alarm.optString("actionToken"))) {
+                        notifyFailure(app, alarm, "Couldn't mark " + alarm.optString("title") + " done");
+                    }
                 } finally {
                     result.finish();
                 }
@@ -59,15 +79,15 @@ public class ActionReceiver extends BroadcastReceiver {
         }
     }
 
-    private static void notifyFailure(Context c, JSONObject alarm) {
+    private static void notifyFailure(Context c, JSONObject alarm, String title) {
         Alarms.ensureChannel(c);
         NotificationManagerCompat nm = NotificationManagerCompat.from(c);
         if (!nm.areNotificationsEnabled()) return;
         try {
             nm.notify(("done-failed:" + alarm.optString("taskId")).hashCode(), new NotificationCompat.Builder(c, Alarms.CHANNEL)
                     .setSmallIcon(R.drawable.ic_stat_lume)
-                    .setContentTitle("Couldn't mark " + alarm.optString("title") + " done")
-                    .setContentText("No connection. Open Lume to mark it there.")
+                    .setContentTitle(title)
+                    .setContentText("No connection. Open Lume to do it there.")
                     .setSilent(true)
                     .setAutoCancel(true)
                     .setContentIntent(PendingIntent.getActivity(c, 0, new Intent(c, LumeLauncherActivity.class), PendingIntent.FLAG_IMMUTABLE))

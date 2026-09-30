@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import { phoneShowsReminders } from './alarm-devices';
 import { reminderPush } from './notify';
 import { pushToAll } from './push';
 import { stageTimes } from './stages';
@@ -14,6 +15,8 @@ export type RemindResult = { checked: number; sent: { title: string; stages: str
 export async function runReminders(now = new Date()): Promise<RemindResult> {
   const snap = await tasksCollection().where('status', '==', 'pending').get();
   const sent: RemindResult['sent'] = [];
+  // The Android app shows these at their exact minute itself (app/api/alarms), so its browser is skipped.
+  const skipAppDevices = await phoneShowsReminders();
 
   for (const doc of snap.docs) {
     const t = doc.data() as TaskDoc;
@@ -28,7 +31,7 @@ export async function runReminders(now = new Date()): Promise<RemindResult> {
     if (due.length === 0 && !snoozeEnded) continue;
 
     const push = reminderPush({ id: doc.id, course: t.course, title: t.title, type: t.type, dueAt }, due, snoozeEnded, now);
-    const { sent: devices } = await pushToAll(push);
+    const { sent: devices } = await pushToAll({ ...push, skipAppDevices });
     await doc.ref.update({
       notifiedStages: [...t.notifiedStages, ...due],
       snoozedUntil: null,

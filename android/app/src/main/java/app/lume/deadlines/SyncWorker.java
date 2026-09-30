@@ -46,6 +46,13 @@ public class SyncWorker extends Worker {
         }
     }
 
+    /** One sync right away, e.g. after a snooze moved a task's reminders. */
+    static void syncNow(Context c) {
+        Constraints online = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
+        WorkManager.getInstance(c).enqueueUniqueWork("lume-alarms-now", ExistingWorkPolicy.REPLACE,
+                new OneTimeWorkRequest.Builder(SyncWorker.class).setConstraints(online).build());
+    }
+
     static void enqueue(Context c) {
         Device.prefs(c).edit().putLong("launched_at", System.currentTimeMillis()).apply();
         WorkManager wm = WorkManager.getInstance(c);

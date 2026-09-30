@@ -23,7 +23,7 @@ final class Api {
 
     static final String ORIGIN = BuildConfig.LUME_ORIGIN;
 
-    /** The alarm schedule from /api/alarms. */
+    /** The alarm and reminder schedule from /api/alarms. */
     static final class Schedule {
         final JSONArray alarms;
         final Set<String> pendingTaskIds;
@@ -40,6 +40,8 @@ final class Api {
         con.setConnectTimeout(timeoutMs);
         con.setReadTimeout(timeoutMs);
         con.setRequestProperty("Authorization", "Bearer " + Device.token(c));
+        // This app shows reminders itself, so Lume sends them here instead of as web pushes.
+        con.setRequestProperty("X-Lume-Reminders", "1");
         try {
             int code = con.getResponseCode();
             if (code == 401) return null;
