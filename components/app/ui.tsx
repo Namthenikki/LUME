@@ -37,10 +37,13 @@ export function TypeChip({ type }: { type: TaskType }) {
 }
 
 const SOURCE_CHIP = {
-  manipal: { label: 'MUJ', className: 'bg-blue/12 text-blue' },
-  nptel: { label: 'NPTEL', className: 'bg-orange/15 text-[#b45309]' },
+  manipal: { label: 'MUJ', className: 'bg-lms-chip text-lms-ink' },
+  nptel: { label: 'NPTEL', className: 'bg-nptel-chip text-nptel-ink' },
   iitm: { label: 'IITM', className: 'bg-red/12 text-red' },
 };
+
+/** A task's whole tile is tinted by where it came from, so the sources are easy to tell apart. */
+export const SOURCE_TILE = { manipal: 'bg-lms-tile', nptel: 'bg-nptel-tile', iitm: 'bg-sunken' } as const;
 
 export function SourceChip({ source }: { source: keyof typeof SOURCE_CHIP }) {
   const chip = SOURCE_CHIP[source];

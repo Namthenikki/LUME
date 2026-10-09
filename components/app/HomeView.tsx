@@ -177,7 +177,7 @@ export function HomeView({
                     <span className={g.id === 'overdue' ? 'text-red' : ''}>{g.label}</span>
                     <span className="font-normal text-ink-3">{list.length}</span>
                   </h3>
-                  <ul>
+                  <ul className="flex flex-col gap-2 pb-3 pt-2">
                     <AnimatePresence initial={false}>
                       {list.map((t) => (
                         <TaskRow key={t.id} task={t} now={now} focused={t.id === focusId} onDone={done} onSnooze={snooze} />
