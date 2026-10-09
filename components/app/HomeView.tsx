@@ -41,6 +41,7 @@ export function HomeView({
   apkReady,
   nptelAlert,
   postsAlert,
+  appVersion,
 }: {
   tasks: TaskView[];
   renderedAt: number;
@@ -48,6 +49,7 @@ export function HomeView({
   apkReady: boolean;
   nptelAlert: string | null;
   postsAlert: string | null;
+  appVersion: number | null;
 }) {
   // Grouping and labels only need a coarse clock; the countdowns tick on their own (TaskRow, Widgets).
   const now = useNow(30_000) ?? renderedAt;
@@ -92,7 +94,7 @@ export function HomeView({
       </motion.header>
 
       <NotificationPrompt />
-      <GetAppCard apkReady={apkReady} />
+      <GetAppCard apkReady={apkReady} appVersion={appVersion} />
       {nptelAlert && (
         <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-[20px] bg-card p-4 shadow-card ring-1 ring-orange/40">
           <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-orange/15 text-[17px] font-bold text-[#b45309] dark:text-orange">N</span>

@@ -9,8 +9,18 @@ import { Toggle } from './SettingsCards';
 import { ago, useNow } from './time';
 import { Panel } from './ui';
 
-export function AndroidCard({ phones, apkReady, alarmsOn }: { phones: { label: string; lastSeenAt: number }[]; apkReady: boolean; alarmsOn: boolean }) {
-  const device = useDevice();
+export function AndroidCard({
+  phones,
+  apkReady,
+  alarmsOn,
+  appVersion,
+}: {
+  phones: { label: string; lastSeenAt: number }[];
+  apkReady: boolean;
+  alarmsOn: boolean;
+  appVersion: number | null;
+}) {
+  const device = useDevice(appVersion);
   const inApp = device.inAndroidApp;
   const now = useNow(60_000);
   const [pending, start] = useTransition();

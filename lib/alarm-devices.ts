@@ -20,13 +20,26 @@ export async function pairAlarmDevice(token: string, label: string): Promise<voi
   await devices().doc(idOf(token)).set({ label: label.slice(0, 80), pairedAt: now, lastSeenAt: now }, { merge: true });
 }
 
-/** `reminders`: this version of the app shows deadline reminders itself (see phoneShowsReminders). */
-export async function isPairedAlarmDevice(token: string, reminders = false): Promise<boolean> {
+/**
+ * `reminders`: this version of the app shows deadline reminders itself (see phoneShowsReminders).
+ * `appVersion`: the version code it reports (apps from 2026-10-09 on), for the update banner.
+ */
+export async function isPairedAlarmDevice(token: string, reminders = false, appVersion: number | null = null): Promise<boolean> {
   const ref = devices().doc(idOf(token));
   const doc = await ref.get();
   if (!doc.exists) return false;
-  await ref.update({ lastSeenAt: Timestamp.now(), reminders });
+  await ref.update({ lastSeenAt: Timestamp.now(), reminders, ...(appVersion ? { appVersion } : {}) });
   return true;
+}
+
+/**
+ * The newest app version a paired phone has reported. After an update Android often brings back the
+ * open Lume page without a fresh launch, so the version in its launch URL can be stale; the phone's
+ * next sync (right after the update) reports the new one here.
+ */
+export async function reportedAppVersion(): Promise<number | null> {
+  const versions = (await devices().get()).docs.map((d) => d.get('appVersion')).filter((v): v is number => typeof v === 'number');
+  return versions.length ? Math.max(...versions) : null;
 }
 
 /**

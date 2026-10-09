@@ -18,7 +18,9 @@ import { listTasks } from '@/lib/tasks';
 export async function GET(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   const withReminders = request.headers.get('x-lume-reminders') === '1';
-  if (!isDeviceToken(token) || !(await isPairedAlarmDevice(token, withReminders))) return new Response('Unauthorized', { status: 401 });
+  const version = Number(request.headers.get('x-lume-app'));
+  const appVersion = Number.isSafeInteger(version) && version > 0 ? version : null;
+  if (!isDeviceToken(token) || !(await isPairedAlarmDevice(token, withReminders, appVersion))) return new Response('Unauthorized', { status: 401 });
   // The phone checks in every 15 minutes: a chance to catch up on anything the scheduler missed.
   catchUpAfterResponse();
 

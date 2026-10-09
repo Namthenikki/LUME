@@ -17,8 +17,8 @@ const LATEST = String(androidRelease.versionCode);
  * Lume app (with alarms). On a computer: install the web app, when the browser offers it. Hidden
  * once installed, or after dismissing.
  */
-export function GetAppCard({ apkReady }: { apkReady: boolean }) {
-  const device = useDevice();
+export function GetAppCard({ apkReady, appVersion }: { apkReady: boolean; appVersion: number | null }) {
+  const device = useDevice(appVersion);
   const installPrompt = useInstallPrompt();
   const [dismissed, setDismissed] = useState({ app: true, update: true });
 

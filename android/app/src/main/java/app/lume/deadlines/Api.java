@@ -45,6 +45,8 @@ final class Api {
         con.setRequestProperty("Authorization", "Bearer " + Device.token(c));
         // This app shows reminders itself, so Lume sends them here instead of as web pushes.
         con.setRequestProperty("X-Lume-Reminders", "1");
+        // Lets the web app know the installed version, so "Install update" goes away once it's in.
+        con.setRequestProperty("X-Lume-App", String.valueOf(BuildConfig.VERSION_CODE));
         try {
             int code = con.getResponseCode();
             if (code == 401) return null;
