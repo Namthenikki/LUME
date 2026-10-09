@@ -26,7 +26,7 @@ public class AlarmReceiver extends BroadcastReceiver {
             return;
         }
         boolean reminder = Reminders.isReminder(alarm);
-        // Quiet hours: alarms don't ring (e.g. a snooze that lands after midnight); reminders still show, silently.
+        // Quiet hours: alarms don't ring; reminders still show, silently.
         if (!reminder && Alarms.isQuietNow()) return;
         PendingResult result = goAsync();
         new Thread(() -> {
@@ -35,8 +35,9 @@ public class AlarmReceiver extends BroadcastReceiver {
                 try {
                     Api.Schedule schedule = Api.fetchSchedule(app, 4000);
                     if (schedule != null) {
-                        Alarms.replaceAll(app, schedule.alarms, schedule.pendingTaskIds);
-                        ring = schedule.pendingTaskIds.contains(alarm.optString("taskId"));
+                        Alarms.replaceAll(app, schedule.alarms);
+                        // Done since it was set, or alarms were turned off in Settings since (reminders still show).
+                        ring = schedule.pendingTaskIds.contains(alarm.optString("taskId")) && (reminder || schedule.alarmsOn);
                     }
                 } catch (Exception offline) {
                     // No connection: better to ring for a finished task than miss a deadline.

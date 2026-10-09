@@ -44,6 +44,20 @@ export async function listAlarmDevices(): Promise<{ label: string; lastSeenAt: n
   return snap.docs.map((d) => ({ label: d.get('label') as string, lastSeenAt: (d.get('lastSeenAt') as Timestamp).toMillis() }));
 }
 
+/**
+ * Whether paired phones ring alarms. Off, they get no alarms at all: the stages that would ring come
+ * as ordinary notifications instead (the reminder schedule already has those). On unless turned off.
+ */
+const settings = () => db().collection('meta').doc('settings');
+
+export async function alarmsOn(): Promise<boolean> {
+  return (await settings().get()).get('alarms') !== false;
+}
+
+export async function setAlarmsOn(on: boolean): Promise<void> {
+  await settings().set({ alarms: on }, { merge: true });
+}
+
 export async function unpairAllAlarmDevices(): Promise<void> {
   const snap = await devices().get();
   await Promise.all(snap.docs.map((d) => d.ref.delete()));

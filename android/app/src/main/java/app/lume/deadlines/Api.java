@@ -27,10 +27,13 @@ final class Api {
     static final class Schedule {
         final JSONArray alarms;
         final Set<String> pendingTaskIds;
+        /** False once alarms are turned off in Settings: reminders only, nothing rings. */
+        final boolean alarmsOn;
 
-        Schedule(JSONArray alarms, Set<String> pendingTaskIds) {
+        Schedule(JSONArray alarms, Set<String> pendingTaskIds, boolean alarmsOn) {
             this.alarms = alarms;
             this.pendingTaskIds = pendingTaskIds;
+            this.alarmsOn = alarmsOn;
         }
     }
 
@@ -50,7 +53,7 @@ final class Api {
             JSONArray ids = body.optJSONArray("pendingTaskIds");
             Set<String> pending = new HashSet<>();
             for (int i = 0; ids != null && i < ids.length(); i++) pending.add(ids.getString(i));
-            return new Schedule(body.getJSONArray("alarms"), pending);
+            return new Schedule(body.getJSONArray("alarms"), pending, body.optBoolean("alarmsOn", true));
         } finally {
             con.disconnect();
         }

@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { refresh } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { isDeviceToken, pairAlarmDevice, unpairAllAlarmDevices } from '@/lib/alarm-devices';
+import { isDeviceToken, pairAlarmDevice, setAlarmsOn, unpairAllAlarmDevices } from '@/lib/alarm-devices';
 import { OWNER_COOKIE } from '@/lib/auth';
 import { syncIfStale } from '@/lib/catch-up';
 import { requireOwner } from '@/lib/owner';
@@ -53,6 +53,13 @@ export async function pairAlarmDeviceAction(token: string): Promise<boolean> {
 export async function unpairAlarmDevicesAction() {
   await requireOwner();
   await unpairAllAlarmDevices();
+  refresh();
+}
+
+/** Alarms on or off for every paired phone; off, their reminders come as plain notifications. */
+export async function setAlarmsOnAction(on: boolean) {
+  await requireOwner();
+  await setAlarmsOn(on);
   refresh();
 }
 

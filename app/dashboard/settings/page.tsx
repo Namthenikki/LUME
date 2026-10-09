@@ -1,7 +1,7 @@
 import { connection } from 'next/server';
 import { AndroidCard } from '@/components/app/AndroidCard';
 import { PageHeader } from '@/components/app/PageHeader';
-import { listAlarmDevices } from '@/lib/alarm-devices';
+import { alarmsOn, listAlarmDevices } from '@/lib/alarm-devices';
 import androidRelease from '@/lib/android-release.json';
 import { cookies, headers } from 'next/headers';
 import { NptelSource } from '@/components/app/NptelSource';
@@ -22,7 +22,7 @@ export const metadata = { title: 'Settings · Lume' };
 
 export default async function SettingsPage() {
   await connection();
-  const [devices, lastCheck, sync, nptel, posts, jar, head, phones] = await Promise.all([
+  const [devices, lastCheck, sync, nptel, posts, jar, head, phones, ringing] = await Promise.all([
     countDevices(),
     lastReminderCheck(),
     getSyncStatus('manipal'),
@@ -31,6 +31,7 @@ export default async function SettingsPage() {
     cookies(),
     headers(),
     listAlarmDevices(),
+    alarmsOn(),
   ]);
   const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   // The extension's connection code: this app's address and its NPTEL key, pasted in one go.
@@ -43,7 +44,7 @@ export default async function SettingsPage() {
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="appear space-y-4">
           <NotificationsCard devices={devices} lastCheck={lastCheck} />
-          <AndroidCard phones={phones} apkReady={androidRelease.origin !== null} />
+          <AndroidCard phones={phones} apkReady={androidRelease.origin !== null} alarmsOn={ringing} />
           <AppearanceCard theme={theme} />
           <InstallCard />
         </div>

@@ -39,14 +39,14 @@ public class SyncWorker extends Worker {
                 return Result.success();
             }
             Device.setPaired(c, true);
-            Alarms.replaceAll(c, schedule.alarms, schedule.pendingTaskIds);
+            Alarms.replaceAll(c, schedule.alarms);
             return Result.success();
         } catch (Exception e) {
             return Result.retry();
         }
     }
 
-    /** One sync right away, e.g. after a snooze moved a task's reminders. */
+    /** One sync right away, e.g. after "Remind in 2h" moved a task's reminders. */
     static void syncNow(Context c) {
         Constraints online = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
         WorkManager.getInstance(c).enqueueUniqueWork("lume-alarms-now", ExistingWorkPolicy.REPLACE,
