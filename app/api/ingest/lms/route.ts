@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     okAt: failed.length === 0 ? now : okAt,
     message: failed.length
       ? `Couldn’t read the posts in ${failed.map((c) => c.name).join(', ')}: ${failed[0].error ?? 'unknown error'}`
-      : `${payload.posts.length} posts in ${payload.courses.length} courses, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'} in them`,
+      : `${payload.posts.length} ${payload.posts.length === 1 ? 'post' : 'posts'} in ${payload.courses.length} ${payload.courses.length === 1 ? 'course' : 'courses'}, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'} in them`,
   });
 
   // Straight into the LMS sync, so a newly posted quiz notifies now, not at the next hourly sync.
