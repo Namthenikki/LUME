@@ -22,11 +22,12 @@ export const metadata = { title: 'Settings · Lume' };
 
 export default async function SettingsPage() {
   await connection();
-  const [devices, lastCheck, sync, nptel, jar, head, phones] = await Promise.all([
+  const [devices, lastCheck, sync, nptel, posts, jar, head, phones] = await Promise.all([
     countDevices(),
     lastReminderCheck(),
     getSyncStatus('manipal'),
     getSyncStatus('nptel'),
+    getSyncStatus('manipal-posts'),
     cookies(),
     headers(),
     listAlarmDevices(),
@@ -63,6 +64,12 @@ export default async function SettingsPage() {
                   </p>
                   <p className="text-[13px] text-ink-2">{sync ? `Last checked ${formatIST(sync.at)}. ${sync.message}.` : 'Not checked yet.'}</p>
                   <p className="text-[13px] text-ink-3">Checked every hour, across all your courses.</p>
+                  <p className={`mt-1.5 text-[13px] ${posts?.ok === false ? 'text-red' : 'text-ink-2'}`}>
+                    {posts
+                      ? `Quiz posts: checked ${formatIST(posts.at)}. ${posts.message.replace(/\.$/, '')}.`
+                      : 'Quiz posts: not checked yet. Update the Lume extension in Chrome (under NPTEL below).'}
+                  </p>
+                  <p className="text-[13px] text-ink-3">Quizzes teachers only announce in a course’s Activity Feed or Announcements, read by the Lume extension in Chrome every 3 hours.</p>
                 </div>
               </li>
               <NptelSource health={nptelHealth(nptel, Date.now())} at={nptel?.at ?? null} message={nptel?.message ?? null} code={`${origin}#${nptelKey()}`} />

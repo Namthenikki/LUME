@@ -50,8 +50,8 @@ export function ownerCookieOptions(https: boolean) {
 }
 
 /**
- * The key the NPTEL Chrome extension sends. It can only post NPTEL deadlines, so the extension
- * never holds CRON_SECRET. Settings shows it; changing AUTH_SECRET replaces it.
+ * The key the Lume Chrome extension sends. It can only post NPTEL deadlines and LMS course posts,
+ * so the extension never holds CRON_SECRET. Settings shows it; changing AUTH_SECRET replaces it.
  */
 export function nptelKey(): string {
   return sign('ingest:nptel:v1');

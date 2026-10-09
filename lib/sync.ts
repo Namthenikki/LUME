@@ -20,8 +20,8 @@ export type SyncResult =
   | { source: string; ok: true; inFeed: number; changes: SyncChange[] }
   | { source: string; ok: false; error: string };
 
-/** The last sync of each source, for "Synced 2 min ago" in the app. */
-export type SyncStatus = { at: number; ok: boolean; message: string };
+/** The last sync of each source, for "Synced 2 min ago" in the app. `okAt`: the last one that worked, if this one didn't. */
+export type SyncStatus = { at: number; ok: boolean; message: string; okAt?: number | null };
 
 /** Syncs every source; one failing source doesn't stop the others. */
 export async function runSync(adapters: SourceAdapter[], now = new Date()): Promise<SyncResult[]> {

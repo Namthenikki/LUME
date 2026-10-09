@@ -1,4 +1,5 @@
 import { requireEnv } from '../env';
+import { withPostQuizzes } from './lms-posts';
 import { ManipalIcsAdapter } from './manipal-ics';
 import type { SourceAdapter } from './types';
 
@@ -11,7 +12,7 @@ export function emailAdapters(): SourceAdapter[] {
   return [];
 }
 
-/** Every source the sync job reads. */
+/** Every source the sync job reads. The LMS is its calendar feed plus quizzes announced in course posts. */
 export function adapters(): SourceAdapter[] {
-  return [new ManipalIcsAdapter(requireEnv('MUJ_ICS_URL')), ...emailAdapters()];
+  return [withPostQuizzes(new ManipalIcsAdapter(requireEnv('MUJ_ICS_URL'))), ...emailAdapters()];
 }
