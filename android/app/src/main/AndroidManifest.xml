@@ -34,7 +34,7 @@
             android:name=".LumeLauncherActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/Lume.Launch">
             <meta-data
                 android:name="android.support.customtabs.trusted.DEFAULT_URL"
                 android:value="${lumeStartUrl}" />
@@ -53,6 +53,10 @@
             <meta-data
                 android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
                 android:value="300" />
+            <!-- Chrome waits for the intro animation (it preloads the page meanwhile); see LumeLauncherActivity. -->
+            <meta-data
+                android:name="android.support.customtabs.trusted.START_CHROME_BEFORE_ANIMATION_COMPLETE"
+                android:value="false" />
             <meta-data
                 android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
                 android:value="app.lume.deadlines.fileprovider" />
