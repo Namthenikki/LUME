@@ -1,24 +1,37 @@
 package app.lume.deadlines;
 
+import android.content.ComponentName;
 import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.browser.customtabs.CustomTabsClient;
+import androidx.browser.customtabs.CustomTabsServiceConnection;
+import androidx.browser.customtabs.TrustedWebUtils;
+import androidx.browser.trusted.splashscreens.SplashScreenVersion;
 
 import com.google.androidbrowserhelper.trusted.LauncherActivity;
+import com.google.androidbrowserhelper.trusted.SessionStore;
+import com.google.androidbrowserhelper.trusted.SharedPreferencesTokenStore;
+import com.google.androidbrowserhelper.trusted.TwaLauncher;
+import com.google.androidbrowserhelper.trusted.TwaProviderPicker;
 
 /**
  * Opens Lume full screen (a Trusted Web Activity) and keeps the alarms in sync. The launch URL tells
  * the web app this app's version (so it can offer updates) and, until this phone is paired, its
  * device token, which the unlocked web app approves.
  *
- * On a fresh start it plays the intro animation ({@link IntroView}) while Chrome connects and
- * preloads the page, then hands over to Chrome's splash, which shows the same mark in the same place.
+ * On a fresh start it plays the intro animation ({@link IntroView}) and opens the browser when it
+ * ends, while the browser warms up. The browser then shows the same mark on the same grey until the
+ * page is ready.
  */
 public class LumeLauncherActivity extends LauncherActivity {
+    private static final String CHROME = "com.android.chrome";
+
     private IntroView intro;
-    private boolean introPlaying;
-    private boolean enterAnimationDone;
+    private String browser;
+    private CustomTabsServiceConnection warmUp;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -28,31 +41,65 @@ public class LumeLauncherActivity extends LauncherActivity {
         SyncWorker.enqueue(this);
         PermissionActivity.askIfNeeded(this);
 
-        // Only when this starts Lume's task (not when it just passes a link to an open Lume).
-        if (!isFinishing() && isTaskRoot()) {
-            intro = new IntroView(this, this::introFinished);
-            setContentView(intro); // over the library's static splash; the intro ends on the same image
-            introPlaying = true;
+        if (!isFinishing() && playsIntro()) {
+            intro = new IntroView(this, this::launchTwa);
+            setContentView(intro);
             intro.play();
+            if (browser() != null) warmUpBrowser();
         }
     }
 
-    // The TWA library opens Chrome once this screen's enter animation has finished (it preloads the
-    // page meanwhile), so holding that back until the intro ends lets both happen at once.
-    @Override
-    public void onEnterAnimationComplete() {
-        enterAnimationDone = true;
-        if (!introPlaying) super.onEnterAnimationComplete();
+    /** Starts the browser during the intro, so the page is quicker to show after it. */
+    private void warmUpBrowser() {
+        CustomTabsServiceConnection connection = new CustomTabsServiceConnection() {
+            @Override
+            public void onCustomTabsServiceConnected(@NonNull ComponentName name, @NonNull CustomTabsClient client) {
+                client.warmup(0);
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {}
+        };
+        if (CustomTabsClient.bindCustomTabsService(this, browser(), connection)) warmUp = connection;
     }
 
-    private void introFinished() {
-        introPlaying = false;
-        if (enterAnimationDone) super.onEnterAnimationComplete();
+    /** Only when this starts Lume's task, not when it just passes a link to an open Lume. */
+    private boolean playsIntro() {
+        return isTaskRoot();
+    }
+
+    // With the intro, the browser opens when it ends (IntroView calls launchTwa).
+    @Override
+    protected boolean shouldLaunchImmediately() {
+        return !playsIntro();
+    }
+
+    @Override
+    protected TwaLauncher createTwaLauncher() {
+        return new TwaLauncher(this, browser(), SessionStore.makeSessionId(getTaskId()), new SharedPreferencesTokenStore(this));
+    }
+
+    /**
+     * The browser Lume runs in: the phone's own pick, unless that browser can't show Lume's splash
+     * screen (the page then loads on black) and Chrome can.
+     */
+    private String browser() {
+        if (browser == null) {
+            TwaProviderPicker.Action pick = TwaProviderPicker.pickProvider(getPackageManager());
+            boolean twa = pick.launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY;
+            browser = (!twa || !showsSplash(pick.provider)) && showsSplash(CHROME) ? CHROME : pick.provider;
+        }
+        return browser;
+    }
+
+    private boolean showsSplash(String pkg) {
+        return pkg != null && TrustedWebUtils.areSplashScreensSupported(this, pkg, SplashScreenVersion.V1);
     }
 
     @Override
     protected void onDestroy() {
         if (intro != null) intro.stop();
+        if (warmUp != null) unbindService(warmUp);
         super.onDestroy();
     }
 
