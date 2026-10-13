@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#ffffff',
+  colorScheme: 'only light', // Lume is light-only; this also stops browsers from darkening it
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

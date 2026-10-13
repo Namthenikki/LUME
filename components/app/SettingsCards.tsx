@@ -1,9 +1,8 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState, useTransition } from 'react';
-import { sendTestAction, setThemeAction } from '@/app/dashboard/actions';
-import type { Theme } from '@/lib/theme';
+import { useEffect, useState } from 'react';
+import { sendTestAction } from '@/app/dashboard/actions';
 import { Tile } from '../landing/widgets';
 import { promptInstall, useInstallPrompt } from './AppBoot';
 import { BellIcon } from './icons';
@@ -110,46 +109,6 @@ export function NotificationsCard({ devices, lastCheck }: { devices: number; las
           </motion.p>
         )}
       </AnimatePresence>
-    </Panel>
-  );
-}
-
-const THEME_OPTIONS: { id: Theme; label: string }[] = [
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
-  { id: 'system', label: 'System' },
-];
-
-/** Light by default, like the landing page; dark or system on request. Remembered per device. */
-export function AppearanceCard({ theme }: { theme: Theme }) {
-  const [current, setCurrent] = useState(theme);
-  const [, start] = useTransition();
-
-  const choose = (t: Theme) => {
-    setCurrent(t);
-    // Show it immediately; the server action saves it for next time.
-    document.querySelector('.app')?.setAttribute('data-theme', t);
-    start(() => setThemeAction(t));
-  };
-
-  return (
-    <Panel title="Appearance">
-      <div className="grid grid-cols-3 gap-1 rounded-[14px] bg-chip p-1" role="radiogroup" aria-label="Theme">
-        {THEME_OPTIONS.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={current === o.id}
-            onClick={() => choose(o.id)}
-            className={`relative h-10 rounded-[11px] text-[14px] font-medium transition-colors ${current === o.id ? 'text-ink' : 'text-ink-2'}`}
-          >
-            {current === o.id && <motion.span layoutId="theme-pill" className="absolute inset-0 rounded-[11px] bg-card shadow-card" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-            <span className="relative">{o.label}</span>
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-[13px] text-ink-2">System follows your phone’s dark mode setting.</p>
     </Panel>
   );
 }

@@ -56,10 +56,10 @@ export default async function RemindersPage() {
                         <span className="block truncate font-medium">{r.title}</span>
                         <span className="block truncate text-[13px] text-ink-2">{r.course}</span>
                         {/* On phones the label sits under the course instead of in a chip */}
-                        <span className={`block text-[12px] font-medium min-[420px]:hidden ${URGENT.has(r.label) ? 'text-red' : 'text-[#0a86b3] dark:text-cyan'}`}>{r.label}</span>
+                        <span className={`block text-[12px] font-medium min-[420px]:hidden ${URGENT.has(r.label) ? 'text-red' : 'text-[#0a86b3]'}`}>{r.label}</span>
                       </span>
                       <span
-                        className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium min-[420px]:block ${URGENT.has(r.label) ? 'bg-red/10 text-red' : r.label === 'When the snooze ends' ? 'bg-chip text-ink-2' : 'bg-cyan/15 text-[#0a86b3] dark:text-cyan'}`}
+                        className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium min-[420px]:block ${URGENT.has(r.label) ? 'bg-red/10 text-red' : r.label === 'When the snooze ends' ? 'bg-chip text-ink-2' : 'bg-cyan/15 text-[#0a86b3]'}`}
                       >
                         {r.label}
                       </span>

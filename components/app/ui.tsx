@@ -26,8 +26,8 @@ export function Panel({
 }
 
 const TYPE_CHIP: Record<TaskType, { label: string; className: string }> = {
-  assignment: { label: 'Assignment', className: 'bg-cyan/15 text-[#0a86b3] dark:text-cyan' },
-  quiz: { label: 'Quiz', className: 'bg-orange/15 text-[#b45309] dark:text-orange' },
+  assignment: { label: 'Assignment', className: 'bg-cyan/15 text-[#0a86b3]' },
+  quiz: { label: 'Quiz', className: 'bg-orange/15 text-[#b45309]' },
   other: { label: 'Other', className: 'bg-chip text-ink-2' },
 };
 

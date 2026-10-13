@@ -226,7 +226,7 @@ export function NextReminder({ tasks, now }: { tasks: TaskView[]; now: number })
                 {r.title}, {r.course}
               </p>
               <p className="mt-0.5 text-[15px] font-semibold leading-snug sm:text-[16px]">{r.label}</p>
-              <p className="mt-2 flex items-center gap-1.5 text-[13px] text-[#0a86b3] dark:text-cyan">
+              <p className="mt-2 flex items-center gap-1.5 text-[13px] text-[#0a86b3]">
                 <span className="size-1.5 rounded-full bg-cyan" />
                 {when}, {timeIST(r.at)}
               </p>

@@ -3,11 +3,10 @@ import { AndroidCard } from '@/components/app/AndroidCard';
 import { PageHeader } from '@/components/app/PageHeader';
 import { alarmsOn, listAlarmDevices, reportedAppVersion } from '@/lib/alarm-devices';
 import androidRelease from '@/lib/android-release.json';
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
 import { NptelSource } from '@/components/app/NptelSource';
-import { AppearanceCard, InstallCard, NotificationsCard } from '@/components/app/SettingsCards';
+import { InstallCard, NotificationsCard } from '@/components/app/SettingsCards';
 import { Tile } from '@/components/landing/widgets';
-import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 import { SyncButton } from '@/components/app/SyncButton';
 import { Panel } from '@/components/app/ui';
 import { nptelKey } from '@/lib/auth';
@@ -22,19 +21,17 @@ export const metadata = { title: 'Settings · Lume' };
 
 export default async function SettingsPage() {
   await connection();
-  const [devices, lastCheck, sync, nptel, posts, jar, head, phones, ringing, appVersion] = await Promise.all([
+  const [devices, lastCheck, sync, nptel, posts, head, phones, ringing, appVersion] = await Promise.all([
     countDevices(),
     lastReminderCheck(),
     getSyncStatus('manipal'),
     getSyncStatus('nptel'),
     getSyncStatus('manipal-posts'),
-    cookies(),
     headers(),
     listAlarmDevices(),
     alarmsOn(),
     reportedAppVersion(),
   ]);
-  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
   // The extension's connection code: this app's address and its NPTEL key, pasted in one go.
   const origin = `${head.get('x-forwarded-proto') ?? 'http'}://${head.get('host')}`;
 
@@ -46,7 +43,6 @@ export default async function SettingsPage() {
         <div className="appear space-y-4">
           <NotificationsCard devices={devices} lastCheck={lastCheck} />
           <AndroidCard phones={phones} apkReady={androidRelease.origin !== null} alarmsOn={ringing} appVersion={appVersion} />
-          <AppearanceCard theme={theme} />
           <InstallCard />
         </div>
 

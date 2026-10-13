@@ -10,7 +10,7 @@ export const EXTENSION_URL = '/downloads/lume-nptel-extension.zip';
 
 const BADGE: Record<Health, { label: string; className: string }> = {
   ok: { label: 'Connected', className: 'bg-green/12 text-green' },
-  stale: { label: 'Not synced lately', className: 'bg-orange/15 text-[#b45309] dark:text-orange' },
+  stale: { label: 'Not synced lately', className: 'bg-orange/15 text-[#b45309]' },
   error: { label: 'Needs attention', className: 'bg-red/10 text-red' },
   off: { label: 'Not set up', className: 'bg-chip text-ink-2' },
 };

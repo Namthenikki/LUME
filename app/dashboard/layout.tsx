@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { cookies } from 'next/headers';
 import { connection } from 'next/server';
-import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 import { AppBoot } from '@/components/app/AppBoot';
 import { MobileHeader, Sidebar, TabBar } from '@/components/app/Shell';
 import { nptelHealth } from '@/lib/source-health';
@@ -20,8 +18,7 @@ export const viewport: Viewport = {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await connection(); // always live data, never prerendered at build time
   catchUpAfterResponse(); // opening the app also sends due reminders and refreshes a stale LMS sync
-  const [tasks, sync, nptel, jar] = await Promise.all([listTasks(), getSyncStatus('manipal'), getSyncStatus('nptel'), cookies()]);
-  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
+  const [tasks, sync, nptel] = await Promise.all([listTasks(), getSyncStatus('manipal'), getSyncStatus('nptel')]);
   const now = Date.now();
   const counts = {
     pending: tasks.filter((t) => t.status === 'pending').length,
@@ -30,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div data-theme={theme} className="app dots min-h-dvh bg-panel text-ink lg:flex">
+    <div className="app dots min-h-dvh bg-panel text-ink lg:flex">
       <AppBoot />
       <Sidebar counts={counts} lastSync={sync?.at ?? null} nptel={nptelHealth(nptel, now)} />
       <div className="min-w-0 flex-1">

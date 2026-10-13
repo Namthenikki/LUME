@@ -56,96 +56,13 @@
   }
 }
 
-/*
- * The app pages are light by default, like the landing. Settings can switch them to dark, or to
- * follow the system: the choice is `data-theme` on `.app` ("light" | "dark" | "system").
- */
-@custom-variant dark {
-  &:where([data-theme='dark'], [data-theme='dark'] *) {
-    @slot;
-  }
-  @media (prefers-color-scheme: dark) {
-    &:where([data-theme='system'], [data-theme='system'] *) {
-      @slot;
-    }
-  }
-}
-
+/* The app pages are always light, like the landing. */
 .app {
   --dot: rgb(14 14 17 / 0.055);
 }
 
-.app[data-theme='dark'] {
-  color-scheme: dark;
-  --color-page: #0e1015;
-  --color-panel: #11141a;
-  --color-card: #181c24;
-  --color-sunken: #1e232c;
-  --color-chip: #252b36;
-  --color-line: #262c37;
-  --color-ink: #eef1f6;
-  --color-ink-2: #9aa3b2;
-  --color-ink-3: #667085;
-  --color-lms-tile: #15283a;
-  --color-lms-chip: #1d3d58;
-  --color-lms-ink: #9fd6f7;
-  --color-nptel-tile: #252b10;
-  --color-nptel-chip: #3a4416;
-  --color-nptel-ink: #d6ea72;
-  --dot: rgb(255 255 255 / 0.05);
-}
-
-/* Tailwind inlines shadow values, so dark mode swaps them through its --tw-shadow variable. */
-.app[data-theme='dark'] .shadow-card {
-  --tw-shadow: 0 0 0 1px rgb(255 255 255 / 0.05), 0 14px 34px -14px rgb(0 0 0 / 0.7);
-}
-
-.app[data-theme='dark'] .shadow-float {
-  --tw-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 30px 50px -18px rgb(0 0 0 / 0.8);
-}
-
-html:has(.app[data-theme='dark']),
-html:has(.app[data-theme='dark']) body {
-  background: #11141a;
-}
-
-@media (prefers-color-scheme: dark) {
-  .app[data-theme='system'] {
-    color-scheme: dark;
-    --color-page: #0e1015;
-    --color-panel: #11141a;
-    --color-card: #181c24;
-    --color-sunken: #1e232c;
-    --color-chip: #252b36;
-    --color-line: #262c37;
-    --color-ink: #eef1f6;
-    --color-ink-2: #9aa3b2;
-    --color-ink-3: #667085;
-    --color-lms-tile: #15283a;
-    --color-lms-chip: #1d3d58;
-    --color-lms-ink: #9fd6f7;
-    --color-nptel-tile: #252b10;
-    --color-nptel-chip: #3a4416;
-    --color-nptel-ink: #d6ea72;
-    --dot: rgb(255 255 255 / 0.05);
-  }
-
-  .app[data-theme='system'] .shadow-card {
-    --tw-shadow: 0 0 0 1px rgb(255 255 255 / 0.05), 0 14px 34px -14px rgb(0 0 0 / 0.7);
-  }
-
-  .app[data-theme='system'] .shadow-float {
-    --tw-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 30px 50px -18px rgb(0 0 0 / 0.8);
-  }
-
-  html:has(.app[data-theme='system']),
-  html:has(.app[data-theme='system']) body {
-    background: #11141a;
-  }
-}
-
-html:has(.app[data-theme='light']),
-html:has(.app[data-theme='light']) body {
+html:has(.app),
+html:has(.app) body {
   background: var(--color-panel);
 }
 

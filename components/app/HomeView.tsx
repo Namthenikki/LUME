@@ -97,7 +97,7 @@ export function HomeView({
       <GetAppCard apkReady={apkReady} appVersion={appVersion} />
       {nptelAlert && (
         <Link href="/dashboard/settings" className="flex items-center gap-3 rounded-[20px] bg-card p-4 shadow-card ring-1 ring-orange/40">
-          <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-orange/15 text-[17px] font-bold text-[#b45309] dark:text-orange">N</span>
+          <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-orange/15 text-[17px] font-bold text-[#b45309]">N</span>
           <span className="min-w-0 flex-1">
             <span className="block text-[14px] font-semibold">NPTEL isn’t syncing</span>
             <span className="block text-[13px] leading-snug text-ink-2">{nptelAlert}</span>

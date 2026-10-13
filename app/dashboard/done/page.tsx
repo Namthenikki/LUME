@@ -50,7 +50,7 @@ export default async function DonePage() {
                       <TypeChip type={t.type} />
                       <SourceChip source={t.source} />
                       {t.doneAt && (
-                        <span className={`rounded-full px-2 py-0.5 font-medium ${late ? 'bg-orange/15 text-[#b45309] dark:text-orange' : 'bg-green/12 text-green'}`}>
+                        <span className={`rounded-full px-2 py-0.5 font-medium ${late ? 'bg-orange/15 text-[#b45309]' : 'bg-green/12 text-green'}`}>
                           {late ? 'Late' : 'On time'}, {dayIST(t.doneAt)}
                         </span>
                       )}

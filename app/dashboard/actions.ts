@@ -10,7 +10,6 @@ import { requireOwner } from '@/lib/owner';
 import { pushToAll, removeDevice, saveDevice } from '@/lib/push';
 import { isQuiet } from '@/lib/quiet';
 import { markDone, markPending, snooze } from '@/lib/tasks';
-import { parseTheme, THEME_COOKIE } from '@/lib/theme';
 
 export async function markDoneAction(id: string) {
   await requireOwner();
@@ -77,12 +76,6 @@ export async function sendTestAction(): Promise<{ sent: number; quietHours: bool
   await requireOwner();
   const { sent } = await pushToAll({ title: 'Reminders are on', body: 'This is how Lume will remind you before each deadline.', test: true });
   return { sent, quietHours: isQuiet(Date.now()) };
-}
-
-export async function setThemeAction(theme: string) {
-  await requireOwner();
-  (await cookies()).set(THEME_COOKIE, parseTheme(theme), { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
-  refresh();
 }
 
 export async function lockAction() {
