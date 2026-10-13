@@ -30,7 +30,7 @@ public class LumeLauncherActivity extends LauncherActivity {
     private static final String CHROME = "com.android.chrome";
 
     private IntroView intro;
-    private String browser;
+    private TwaProviderPicker.Action pick;
     private CustomTabsServiceConnection warmUp;
 
     @Override
@@ -45,7 +45,7 @@ public class LumeLauncherActivity extends LauncherActivity {
             intro = new IntroView(this, this::launchTwa);
             setContentView(intro);
             intro.play();
-            if (browser() != null) warmUpBrowser();
+            if (warmUpTarget() != null) warmUpBrowser();
         }
     }
 
@@ -60,7 +60,7 @@ public class LumeLauncherActivity extends LauncherActivity {
             @Override
             public void onServiceDisconnected(ComponentName name) {}
         };
-        if (CustomTabsClient.bindCustomTabsService(this, browser(), connection)) warmUp = connection;
+        if (CustomTabsClient.bindCustomTabsService(this, warmUpTarget(), connection)) warmUp = connection;
     }
 
     /** Only when this starts Lume's task, not when it just passes a link to an open Lume. */
@@ -76,20 +76,27 @@ public class LumeLauncherActivity extends LauncherActivity {
 
     @Override
     protected TwaLauncher createTwaLauncher() {
-        return new TwaLauncher(this, browser(), SessionStore.makeSessionId(getTaskId()), new SharedPreferencesTokenStore(this));
+        // Null leaves the choice to the library, as before (it also falls back to a browser tab when needed).
+        return new TwaLauncher(this, chromeInstead(), SessionStore.makeSessionId(getTaskId()), new SharedPreferencesTokenStore(this));
     }
 
-    /**
-     * The browser Lume runs in: the phone's own pick, unless that browser can't show Lume's splash
-     * screen (the page then loads on black) and Chrome can.
-     */
-    private String browser() {
-        if (browser == null) {
-            TwaProviderPicker.Action pick = TwaProviderPicker.pickProvider(getPackageManager());
-            boolean twa = pick.launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY;
-            browser = (!twa || !showsSplash(pick.provider)) && showsSplash(CHROME) ? CHROME : pick.provider;
-        }
-        return browser;
+    /** The browser the TWA library picks by itself (the phone's default, if it can run Lume full screen). */
+    private TwaProviderPicker.Action pick() {
+        if (pick == null) pick = TwaProviderPicker.pickProvider(getPackageManager());
+        return pick;
+    }
+
+    /** Chrome, when the phone's own pick can't show Lume's splash screen (the page then loads on black) and Chrome can. */
+    private String chromeInstead() {
+        boolean twa = pick().launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY;
+        return (!twa || !showsSplash(pick().provider)) && showsSplash(CHROME) ? CHROME : null;
+    }
+
+    /** The browser to warm up during the intro: the one Lume will most likely open in. */
+    private String warmUpTarget() {
+        String chrome = chromeInstead();
+        if (chrome != null) return chrome;
+        return pick().launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY ? pick().provider : null;
     }
 
     private boolean showsSplash(String pkg) {

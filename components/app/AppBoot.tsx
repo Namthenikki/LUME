@@ -72,7 +72,10 @@ export function AppBoot() {
     url.searchParams.delete('lume_device');
     url.searchParams.delete('lume_app');
     history.replaceState(null, '', url.pathname + url.search + url.hash);
-    if (token) pairAlarmDeviceAction(token).catch(() => {});
+    // Only the Lume app itself may hand over a phone token: its pages open with its android-app://
+    // referrer. A ?lume_device= link opened anywhere else would pair a stranger's phone with this Lume.
+    const fromApp = document.referrer === 'android-app://app.lume.deadlines' || document.referrer.startsWith('android-app://app.lume.deadlines/');
+    if (token && fromApp) pairAlarmDeviceAction(token).catch(() => {});
   }, []);
 
   return null;
