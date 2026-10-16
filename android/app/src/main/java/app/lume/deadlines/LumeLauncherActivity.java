@@ -60,6 +60,7 @@ public class LumeLauncherActivity extends Activity {
         Reminders.ensureChannel(this);
         SyncWorker.enqueue(this);
         PermissionActivity.askIfNeeded(this);
+        UpdateActivity.opened(this);
         WindowCompat.enableEdgeToEdge(getWindow());
 
         // The page sits between the status bar and the navigation bar (and above the keyboard), on Lume's
