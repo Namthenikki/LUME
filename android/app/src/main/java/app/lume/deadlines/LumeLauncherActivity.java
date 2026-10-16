@@ -1,120 +1,263 @@
 package app.lume.deadlines;
 
-import android.content.ComponentName;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.CookieManager;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.browser.customtabs.CustomTabsClient;
-import androidx.browser.customtabs.CustomTabsServiceConnection;
-import androidx.browser.customtabs.TrustedWebUtils;
-import androidx.browser.trusted.splashscreens.SplashScreenVersion;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
-import com.google.androidbrowserhelper.trusted.LauncherActivity;
-import com.google.androidbrowserhelper.trusted.SessionStore;
-import com.google.androidbrowserhelper.trusted.SharedPreferencesTokenStore;
-import com.google.androidbrowserhelper.trusted.TwaLauncher;
-import com.google.androidbrowserhelper.trusted.TwaProviderPicker;
+import java.net.URISyntaxException;
 
 /**
- * Opens Lume full screen (a Trusted Web Activity) and keeps the alarms in sync. The launch URL tells
- * the web app this app's version (so it can offer updates) and, until this phone is paired, its
- * device token, which the unlocked web app approves.
+ * Lume itself: the web app in a WebView, with the intro animation ({@link IntroView}) on top. The page
+ * loads behind the intro, and the intro only fades away once the page has drawn, so opening Lume never
+ * shows a black or blank screen. (It used to hand the page to a browser, whose own startup showed black.)
  *
- * On a fresh start it plays the intro animation ({@link IntroView}) and opens the browser when it
- * ends, while the browser warms up. The browser then shows the same mark on the same grey until the
- * page is ready.
+ * The launch URL tells the web app this app's version (so it can offer updates) and, until this phone
+ * is paired, its device token, which the unlocked web app approves. The user agent ends in
+ * "LumeApp/<version>", which is how the page knows it's inside the app.
  */
-public class LumeLauncherActivity extends LauncherActivity {
-    private static final String CHROME = "com.android.chrome";
+public class LumeLauncherActivity extends Activity {
+    private static final int PANEL = 0xFFF3F3F5;
+    private static final int CARD = 0xFFFFFFFF;
+    /** If the page still hasn't drawn this long after opening (very slow network), show it anyway. */
+    private static final long REVEAL_ANYWAY_MS = 12_000;
 
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private WebView web;
     private IntroView intro;
-    private TwaProviderPicker.Action pick;
-    private CustomTabsServiceConnection warmUp;
+    private boolean introDone;
+    private boolean pageDrawn;
+    private Object backCallback;
 
+    @SuppressLint("SetJavaScriptEnabled")
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Alarms.ensureChannel(this);
         Reminders.ensureChannel(this);
         SyncWorker.enqueue(this);
         PermissionActivity.askIfNeeded(this);
+        WindowCompat.enableEdgeToEdge(getWindow());
 
-        if (!isFinishing() && playsIntro()) {
-            intro = new IntroView(this, this::launchTwa);
-            setContentView(intro);
+        // The page sits between the status bar and the navigation bar (and above the keyboard), on Lume's
+        // grey, with white under it like the app's tab bar; the intro covers the whole screen.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(PANEL);
+        View navBar = new View(this);
+        navBar.setBackgroundColor(CARD);
+        root.addView(navBar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, android.view.Gravity.BOTTOM));
+        FrameLayout page = new FrameLayout(this);
+        root.addView(page, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            page.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+            navBar.getLayoutParams().height = bars.bottom;
+            navBar.requestLayout();
+            return WindowInsetsCompat.CONSUMED;
+        });
+
+        web = new WebView(this);
+        web.setBackgroundColor(PANEL);
+        WebSettings settings = web.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setSupportMultipleWindows(false);
+        settings.setUserAgentString(settings.getUserAgentString() + " LumeApp/" + BuildConfig.VERSION_CODE);
+        CookieManager.getInstance().setAcceptCookie(true);
+        web.setWebViewClient(new PageClient());
+        web.setWebChromeClient(new WebChromeClient()); // alerts and confirms from the page
+        web.setDownloadListener((url, userAgent, disposition, mimeType, length) -> openOutside(Uri.parse(url)));
+        page.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        if (savedInstanceState == null) {
+            intro = new IntroView(this, () -> {
+                introDone = true;
+                revealWhenReady();
+            });
+            root.addView(intro, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             intro.play();
-            if (warmUpTarget() != null) warmUpBrowser();
+            main.postDelayed(() -> {
+                pageDrawn = true;
+                revealWhenReady();
+            }, REVEAL_ANYWAY_MS);
+        }
+        setContentView(root);
+        web.loadUrl(launchUrl(getIntent()));
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // A link or a notification into a particular page; opening from the launcher just comes back.
+        if (lumeUrl(intent.getData())) web.loadUrl(launchUrl(intent));
+    }
+
+    /** The page to open: the intent's own Lume link, or the dashboard. */
+    private String launchUrl(Intent intent) {
+        Uri data = intent.getData();
+        Uri.Builder url = (lumeUrl(data) ? data : Uri.parse(Api.ORIGIN + "/dashboard")).buildUpon()
+                .appendQueryParameter("lume_app", String.valueOf(BuildConfig.VERSION_CODE));
+        if (!Device.isPaired(this)) url.appendQueryParameter("lume_device", Device.token(this));
+        return url.build().toString();
+    }
+
+    private static boolean lumeUrl(Uri uri) {
+        if (uri == null) return false;
+        Uri origin = Uri.parse(Api.ORIGIN);
+        return origin.getScheme().equals(uri.getScheme()) && origin.getAuthority().equals(uri.getAuthority());
+    }
+
+    /** The intro fades out once it has played and the page has drawn underneath it. */
+    private void revealWhenReady() {
+        if (intro == null || !introDone || !pageDrawn) return;
+        IntroView leaving = intro;
+        intro = null;
+        main.removeCallbacksAndMessages(null);
+        leaving.animate().alpha(0f).setDuration(220).withEndAction(() -> {
+            leaving.stop();
+            ((ViewGroup) leaving.getParent()).removeView(leaving);
+        });
+    }
+
+    private final class PageClient extends WebViewClient {
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            Uri uri = request.getUrl();
+            if (lumeUrl(uri)) return false;
+            if ("intent".equals(uri.getScheme())) openIntentLink(uri.toString());
+            else openOutside(uri);
+            return true;
+        }
+
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            updateBack();
+        }
+
+        @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            if (!pageDrawn) {
+                pageDrawn = true;
+                revealWhenReady();
+            }
+        }
+
+        @Override
+        public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+            updateBack();
+        }
+
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (!request.isForMainFrame()) return;
+            view.loadDataWithBaseURL(null, offlinePage(launchUrl(getIntent())), "text/html", "utf-8", null);
         }
     }
 
-    /** Starts the browser during the intro, so the page is quicker to show after it. */
-    private void warmUpBrowser() {
-        CustomTabsServiceConnection connection = new CustomTabsServiceConnection() {
-            @Override
-            public void onCustomTabsServiceConnected(@NonNull ComponentName name, @NonNull CustomTabsClient client) {
-                client.warmup(0);
+    /** Lume's buttons for the app (lume://sync, lume://update...) come as Android intent links. */
+    private void openIntentLink(String link) {
+        try {
+            Intent intent = Intent.parseUri(link, Intent.URI_INTENT_SCHEME);
+            if (!getPackageName().equals(intent.getPackage())) {
+                // Someone else's app: only as an ordinary link, never a direct component.
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                intent.setComponent(null);
+                intent.setSelector(null);
             }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {}
-        };
-        if (CustomTabsClient.bindCustomTabsService(this, warmUpTarget(), connection)) warmUp = connection;
+            try {
+                startActivity(intent);
+            } catch (ActivityNotFoundException e) {
+                String fallback = intent.getStringExtra("browser_fallback_url");
+                if (fallback != null) openOutside(Uri.parse(fallback));
+            }
+        } catch (URISyntaxException ignored) {
+            // not a link Lume can open
+        }
     }
 
-    /** Only when this starts Lume's task, not when it just passes a link to an open Lume. */
-    private boolean playsIntro() {
-        return isTaskRoot();
+    /** Anything that isn't Lume (an LMS or NPTEL page, a download, mail) opens in its own app. */
+    private void openOutside(Uri uri) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE));
+        } catch (ActivityNotFoundException ignored) {
+            // nothing on the phone opens it
+        }
     }
 
-    // With the intro, the browser opens when it ends (IntroView calls launchTwa).
+    private static String offlinePage(String retryUrl) {
+        return "<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>"
+                + "<body style='margin:0;min-height:100vh;display:grid;place-items:center;background:#F3F3F5;"
+                + "font:16px system-ui,sans-serif;color:#0E0E11;text-align:center'><div style='padding:24px'>"
+                + "<p style='font-size:20px;font-weight:600;margin:0 0 6px'>Can’t reach Lume</p>"
+                + "<p style='color:#62626B;margin:0 0 20px'>Check your connection. Your alarms still ring.</p>"
+                + "<a href='" + retryUrl.replace("'", "%27") + "' style='display:inline-block;background:#1D6EF5;color:#fff;"
+                + "text-decoration:none;font-weight:600;padding:12px 22px;border-radius:12px'>Try again</a></div>";
+    }
+
+    /** Back goes back in Lume's pages, and closes Lume from the first one. */
+    private void updateBack() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        boolean canGoBack = web.canGoBack();
+        if (canGoBack && backCallback == null) {
+            OnBackInvokedCallback callback = () -> web.goBack();
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+            backCallback = callback;
+        } else if (!canGoBack && backCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback((OnBackInvokedCallback) backCallback);
+            backCallback = null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
     @Override
-    protected boolean shouldLaunchImmediately() {
-        return !playsIntro();
+    public void onBackPressed() {
+        // Android 12 and older; newer versions use the callback in updateBack.
+        if (web.canGoBack()) web.goBack();
+        else super.onBackPressed();
     }
 
     @Override
-    protected TwaLauncher createTwaLauncher() {
-        // Null leaves the choice to the library, as before (it also falls back to a browser tab when needed).
-        return new TwaLauncher(this, chromeInstead(), SessionStore.makeSessionId(getTaskId()), new SharedPreferencesTokenStore(this));
+    protected void onResume() {
+        super.onResume();
+        web.onResume();
     }
 
-    /** The browser the TWA library picks by itself (the phone's default, if it can run Lume full screen). */
-    private TwaProviderPicker.Action pick() {
-        if (pick == null) pick = TwaProviderPicker.pickProvider(getPackageManager());
-        return pick;
-    }
-
-    /** Chrome, when the phone's own pick can't show Lume's splash screen (the page then loads on black) and Chrome can. */
-    private String chromeInstead() {
-        boolean twa = pick().launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY;
-        return (!twa || !showsSplash(pick().provider)) && showsSplash(CHROME) ? CHROME : null;
-    }
-
-    /** The browser to warm up during the intro: the one Lume will most likely open in. */
-    private String warmUpTarget() {
-        String chrome = chromeInstead();
-        if (chrome != null) return chrome;
-        return pick().launchMode == TwaProviderPicker.LaunchMode.TRUSTED_WEB_ACTIVITY ? pick().provider : null;
-    }
-
-    private boolean showsSplash(String pkg) {
-        return pkg != null && TrustedWebUtils.areSplashScreensSupported(this, pkg, SplashScreenVersion.V1);
+    @Override
+    protected void onPause() {
+        web.onPause();
+        CookieManager.getInstance().flush();
+        super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        main.removeCallbacksAndMessages(null);
         if (intro != null) intro.stop();
-        if (warmUp != null) unbindService(warmUp);
+        web.destroy();
         super.onDestroy();
-    }
-
-    @Override
-    protected Uri getLaunchingUrl() {
-        Uri.Builder url = super.getLaunchingUrl().buildUpon()
-                .appendQueryParameter("lume_app", String.valueOf(BuildConfig.VERSION_CODE));
-        if (!Device.isPaired(this)) url.appendQueryParameter("lume_device", Device.token(this));
-        return url.build();
     }
 }

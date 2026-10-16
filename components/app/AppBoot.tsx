@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useSyncExternalStore } from 'react';
 import { pairAlarmDeviceAction } from '@/app/dashboard/actions';
-import { rememberAppVersion } from './install';
+import { inLumeApp, rememberAppVersion } from './install';
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -72,9 +72,11 @@ export function AppBoot() {
     url.searchParams.delete('lume_device');
     url.searchParams.delete('lume_app');
     history.replaceState(null, '', url.pathname + url.search + url.hash);
-    // Only the Lume app itself may hand over a phone token: its pages open with its android-app://
-    // referrer. A ?lume_device= link opened anywhere else would pair a stranger's phone with this Lume.
-    const fromApp = document.referrer === 'android-app://app.lume.deadlines' || document.referrer.startsWith('android-app://app.lume.deadlines/');
+    // Only the Lume app itself may hand over a phone token (its WebView's user agent says LumeApp; older
+    // apps opened Chrome with an android-app:// referrer). A ?lume_device= link opened anywhere else
+    // would pair a stranger's phone with this Lume.
+    const fromApp =
+      inLumeApp() || document.referrer === 'android-app://app.lume.deadlines' || document.referrer.startsWith('android-app://app.lume.deadlines/');
     if (token && fromApp) pairAlarmDeviceAction(token).catch(() => {});
   }, []);
 
