@@ -1,13 +1,15 @@
 import { isNptelRequest } from '@/lib/auth';
 import { catchUpAfterResponse, syncIfStale } from '@/lib/catch-up';
 import { requireEnv } from '@/lib/env';
-import { parseLmsPayload, savePostQuizzes } from '@/lib/sources/lms-posts';
+import { parseLmsPayload, saveLmsQuizzes, upcomingLmsQuizzes } from '@/lib/sources/lms-posts';
 import { getSyncStatus, setSyncStatus } from '@/lib/sync';
 
 /**
- * The Lume Chrome extension posts your MUJ courses' posts (Activity Feed and Announcements) here,
- * every few hours while Chrome is open. Quizzes announced in them become LMS tasks, with the same
- * reminders and alarms. Authorized by the extension's key from Settings, not CRON_SECRET.
+ * The Lume Chrome extension posts your MUJ courses' posts (Activity Feed and Announcements) and
+ * their Quizzes tool lists here, every hour while Chrome is open and right after you submit a quiz.
+ * Quizzes announced in posts become LMS tasks, with the same reminders and alarms; the Quizzes tool
+ * gives each quiz's start and ticks off the ones you've attempted. Authorized by the extension's
+ * key from Settings, not CRON_SECRET.
  */
 
 // The extension calls from its own origin; the key, not a cookie, is what authorizes it.
@@ -40,8 +42,8 @@ export async function POST(request: Request) {
     return reply({ ok: false });
   }
 
-  const quizzes = await savePostQuizzes(payload, new URL(requireEnv('MUJ_ICS_URL')).origin, now);
-  const upcoming = quizzes.filter((q) => q.dueAt > now).sort((a, b) => a.dueAt - b.dueAt);
+  const saved = await saveLmsQuizzes(payload, new URL(requireEnv('MUJ_ICS_URL')).origin, now);
+  const upcoming = upcomingLmsQuizzes(saved, now);
   const failed = payload.courses.filter((c) => !c.ok);
   await setSyncStatus('manipal-posts', {
     at: now,
@@ -49,16 +51,17 @@ export async function POST(request: Request) {
     okAt: failed.length === 0 ? now : okAt,
     message: failed.length
       ? `Couldn’t read the posts in ${failed.map((c) => c.name).join(', ')}: ${failed[0].error ?? 'unknown error'}`
-      : `${payload.posts.length} ${payload.posts.length === 1 ? 'post' : 'posts'} in ${payload.courses.length} ${payload.courses.length === 1 ? 'course' : 'courses'}, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'} in them`,
+      : `${payload.posts.length} ${payload.posts.length === 1 ? 'post' : 'posts'}${payload.quizzes ? ` and ${payload.quizzes.length} ${payload.quizzes.length === 1 ? 'quiz' : 'quizzes'}` : ''} in ${payload.courses.length} ${payload.courses.length === 1 ? 'course' : 'courses'}, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'}`,
   });
 
-  // Straight into the LMS sync, so a newly posted quiz notifies now, not at the next hourly sync.
+  // Straight into the LMS sync, so a new quiz notifies now and an attempted one is ticked now, not at the next hourly sync.
   const results = await syncIfStale(5_000);
   catchUpAfterResponse();
   const changes = results?.find((r) => r.source === 'manipal');
+  const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
   return reply({
     ok: true,
-    quizzes: upcoming.map((q) => ({ course: q.course, title: q.title, dueAt: new Date(q.dueAt).toISOString(), url: q.url })),
+    quizzes: upcoming.map((q) => ({ course: q.course, title: q.title, startsAt: iso(q.startsAt), dueAt: iso(q.dueAt), url: q.url, done: q.done })),
     synced: changes?.ok ?? false,
   });
 }

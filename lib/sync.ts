@@ -3,7 +3,7 @@ import { db } from './firebase-admin';
 import { deadlineChangedPush, newTaskPush } from './notify';
 import { pushToAll } from './push';
 import type { SourceAdapter } from './sources/types';
-import { pastStages } from './stages';
+import { pastStages, remindAt } from './stages';
 import { type TaskDoc, taskId } from './tasks';
 
 export type SyncChange = {
@@ -13,6 +13,8 @@ export type SyncChange = {
   title: string;
   type: string;
   dueAt: Date;
+  opensAt: Date | null;
+  /** For `changed`: the time it counted down to before (the deadline, or a quiz sitting's start). */
   previousDueAt?: Date;
 };
 
@@ -70,7 +72,7 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
     const info = { course: t.course, title: t.title, type: t.type, url: t.url };
     const opensAt = t.opensAt ? Timestamp.fromDate(t.opensAt) : null;
     const dueAt = Timestamp.fromDate(t.dueAt);
-    const change = { id, course: t.course, title: t.title, type: t.type, dueAt: t.dueAt };
+    const change = { id, course: t.course, title: t.title, type: t.type, dueAt: t.dueAt, opensAt: t.opensAt };
 
     // New, or back in the feed after being cancelled. Anything already past when first seen is ignored.
     if (!prev || (prev.status === 'cancelled' && t.dueAt > now)) {
@@ -86,7 +88,7 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
         createdAt: prev?.createdAt ?? nowTs,
         updatedAt: nowTs,
         // "new" is sent right after this sync commits.
-        notifiedStages: ['new', ...pastStages(t.dueAt, now)],
+        notifiedStages: ['new', ...pastStages(t, now)],
         snoozedUntil: null,
         doneAt: t.submitted ? nowTs : null,
       };
@@ -99,6 +101,9 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
     const submittedNow = !!t.submitted && prev.status === 'pending';
 
     const dueChanged = !prev.dueAt.isEqual(dueAt);
+    // What the reminders count down to: the deadline, or a quiz sitting's start (lib/stages.ts).
+    const prevRemindAt = remindAt({ type: prev.type, dueAt: prev.dueAt.toMillis(), opensAt: prev.opensAt?.toMillis() ?? null });
+    const remindChanged = remindAt(t) !== prevRemindAt;
     const infoChanged =
       JSON.stringify([prev.course, prev.title, prev.type, prev.url, prev.opensAt?.toMillis()]) !==
       JSON.stringify([info.course, info.title, info.type, info.url, opensAt?.toMillis()]);
@@ -108,11 +113,14 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
     if (submittedNow) {
       Object.assign(update, { status: 'done', doneAt: nowTs, snoozedUntil: null });
       changes.push({ kind: 'submitted', ...change });
-    } else if (dueChanged && prev.status === 'pending') {
-      // Reminders restart against the new deadline; stages already past for it are skipped.
+    } else if (remindChanged && prev.status === 'pending') {
+      // Reminders restart against the new time; stages already past for it are skipped.
       const alreadyNew = prev.notifiedStages.includes('new') ? (['new'] as const) : [];
-      update.notifiedStages = [...alreadyNew, ...pastStages(t.dueAt, now)];
-      changes.push({ kind: 'changed', ...change, previousDueAt: prev.dueAt.toDate() });
+      update.notifiedStages = [...alreadyNew, ...pastStages(t, now)];
+      changes.push({ kind: 'changed', ...change, previousDueAt: new Date(prevRemindAt) });
+    } else if (dueChanged && prev.status === 'pending' && t.dueAt > now) {
+      // A quiz sitting closes at a new time but starts as before: only its "Missed" reminder moves.
+      update.notifiedStages = prev.notifiedStages.filter((s) => s !== 'overdue');
     }
     batch.update(tasks.doc(id), update);
   }
@@ -124,7 +132,7 @@ async function syncSource(adapter: SourceAdapter, now: Date) {
     for (const [id, prev] of existing) {
       if (seen.has(id) || prev.status !== 'pending') continue;
       batch.update(tasks.doc(id), { status: 'cancelled', updatedAt: nowTs });
-      changes.push({ kind: 'cancelled', id, course: prev.course, title: prev.title, type: prev.type, dueAt: prev.dueAt.toDate() });
+      changes.push({ kind: 'cancelled', id, course: prev.course, title: prev.title, type: prev.type, dueAt: prev.dueAt.toDate(), opensAt: prev.opensAt?.toDate() ?? null });
     }
   }
 

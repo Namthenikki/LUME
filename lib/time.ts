@@ -26,3 +26,8 @@ export function formatIST(date: Date | number): string {
 export function istDayNumber(date: Date | number): number {
   return Math.floor((new Date(date).getTime() + IST_OFFSET) / (24 * HOUR));
 }
+
+/** "Sat 17 Oct, 8:00 PM to 8:30 PM" in IST: a quiz window. */
+export function windowIST(opensAt: Date | number, closesAt: Date | number): string {
+  return `${formatIST(opensAt)} to ${istDayNumber(opensAt) === istDayNumber(closesAt) ? timeIST(closesAt) : formatIST(closesAt)}`;
+}

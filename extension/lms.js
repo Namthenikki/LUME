@@ -1,6 +1,7 @@
-// Reads the posts in your MUJ LMS courses (each course's Activity Feed and Announcements): the same
-// calls the course home page makes, sent with the Chrome session you're already signed in with.
-// Lume looks for quiz announcements in them. Nothing here logs in or stores a password.
+// Reads the posts in your MUJ LMS courses (each course's Activity Feed and Announcements) and their
+// quizzes: the same calls the course pages make, sent with the Chrome session you're already signed
+// in with. Lume looks for quiz announcements in the posts, takes each quiz's real start and end, and
+// ticks a quiz done once you've attempted it. Nothing here logs in or stores a password.
 
 export const LMS = 'https://mujlms.manipal.edu';
 const FEED = 'https://prd.activityfeed.ap-south-1.brightspace.com/api/v1';
@@ -105,27 +106,84 @@ async function coursePosts(course, token, get) {
   return posts.filter((p) => p.publishedAt && !Number.isNaN(Date.parse(p.publishedAt)));
 }
 
+const tagless = (html) => html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ').trim();
+
 /**
- * Every current course's posts. A course that fails is reported and the rest still go; being
- * signed out stops the whole run, since every course would fail the same way.
+ * Your attempts at each quiz, from the course's Quizzes page: its Attempts column reads "1 / 1"
+ * (attempts made / allowed). Keyed by quiz id. The page is plain HTML, read with patterns since
+ * the extension's background has no HTML parser.
+ */
+function attemptsOnQuizzesPage(html) {
+  const attempts = {};
+  for (const row of html.split(/<tr[\s>]/i).slice(1)) {
+    const id = /GoToQuiz\((\d+)/.exec(row)?.[1];
+    if (!id) continue;
+    const cells = [...row.split(/<\/tr>/i)[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
+    const made = /^(\d+)\s*\//.exec(tagless(cells.at(-1)?.[1] ?? ''))?.[1];
+    if (made !== undefined) attempts[id] = Number(made);
+  }
+  return attempts;
+}
+
+/**
+ * A course's quizzes in the Quizzes tool: when each opens and closes (the calendar often leaves the
+ * start out), and how many times you've attempted it, so Lume can tick it done.
+ */
+async function courseQuizzes(course, get) {
+  const list = [];
+  let url = `${LMS}/d2l/api/le/${LE}/${course.id}/quizzes/`;
+  for (let page = 0; url && page < 5; page++) {
+    const r = await get(url);
+    if (r.status === 403 || r.status === 404) return []; // the course has no Quizzes tool
+    const j = json(r.text);
+    if (r.status !== 200 || !Array.isArray(j?.Objects)) throw isLogin(r) ? new LmsSignedOut() : new Error(`the Quizzes tool answered ${r.status}`);
+    list.push(...j.Objects);
+    url = typeof j.Next === 'string' && j.Next.startsWith(LMS) ? j.Next : null;
+  }
+  if (list.length === 0) return [];
+
+  const page = await get(`${LMS}/d2l/lms/quizzing/user/quizzes_list.d2l?ou=${course.id}`);
+  if (isLogin(page)) throw new LmsSignedOut();
+  const attempts = page.status === 200 ? attemptsOnQuizzesPage(page.text) : {};
+  return list
+    .filter((q) => Number.isSafeInteger(q?.QuizId))
+    .map((q) => ({
+      courseId: course.id,
+      id: String(q.QuizId),
+      name: String(q.Name ?? '').trim().slice(0, 300),
+      active: q.IsActive !== false,
+      startsAt: q.StartDate ?? null,
+      endsAt: q.EndDate ?? null,
+      dueAt: q.DueDate ?? null,
+      attempts: attempts[q.QuizId] ?? null,
+    }));
+}
+
+/**
+ * Every current course's posts and quizzes. A course that fails is reported and the rest still go;
+ * being signed out stops the whole run, since every course would fail the same way.
  */
 export async function readLms({ get = request, now = Date.now() } = {}) {
   try {
     const token = await feedToken(get);
     const courses = [];
     const posts = [];
+    const quizzes = [];
     for (const course of await myCourses(get, now)) {
       try {
-        posts.push(...(await coursePosts(course, token, get)));
+        const coursePostList = await coursePosts(course, token, get);
+        const courseQuizList = await courseQuizzes(course, get);
+        posts.push(...coursePostList);
+        quizzes.push(...courseQuizList);
         courses.push({ ...course, ok: true });
       } catch (err) {
         if (err instanceof LmsSignedOut) throw err;
         courses.push({ ...course, ok: false, error: describe(err) });
       }
     }
-    return { courses, posts };
+    return { courses, posts, quizzes };
   } catch (err) {
-    return { error: describe(err), signedOut: err instanceof LmsSignedOut, courses: [], posts: [] };
+    return { error: describe(err), signedOut: err instanceof LmsSignedOut, courses: [], posts: [], quizzes: [] };
   }
 }
 

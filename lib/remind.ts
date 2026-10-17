@@ -23,14 +23,14 @@ export async function runReminders(now = new Date()): Promise<RemindResult> {
     const snoozedUntil = t.snoozedUntil?.toDate();
     if (snoozedUntil && snoozedUntil > now) continue;
 
-    const dueAt = t.dueAt.toDate();
-    const due = stageTimes(dueAt)
+    const info = { id: doc.id, course: t.course, title: t.title, type: t.type, dueAt: t.dueAt.toDate(), opensAt: t.opensAt?.toDate() ?? null };
+    const due = stageTimes(info)
       .filter(([stage, at]) => at <= now && !t.notifiedStages.includes(stage))
       .map(([stage]) => stage);
     const snoozeEnded = !!snoozedUntil;
     if (due.length === 0 && !snoozeEnded) continue;
 
-    const push = reminderPush({ id: doc.id, course: t.course, title: t.title, type: t.type, dueAt }, due, snoozeEnded, now);
+    const push = reminderPush(info, due, snoozeEnded, now);
     const { sent: devices } = await pushToAll({ ...push, skipAppDevices });
     await doc.ref.update({
       notifiedStages: [...t.notifiedStages, ...due],
