@@ -16,7 +16,8 @@ import type { RawTask, SourceAdapter } from './types';
  * reminders and alarms.
  */
 
-export type LmsCourse = { id: string; name: string; ok: boolean; error?: string };
+/** `quizzesError`: its posts were read but its quizzes weren't. */
+export type LmsCourse = { id: string; name: string; ok: boolean; error?: string; quizzesError?: string };
 
 /** A quiz in a course's Quizzes tool, as the extension reads it (times are the LMS's ISO strings). */
 export type LmsQuiz = {
@@ -29,6 +30,8 @@ export type LmsQuiz = {
   dueAt: string | null;
   /** Attempts you've made ("1 / 1" on the Quizzes page), or null if the page didn't say. */
   attempts: number | null;
+  /** On your Quizzes page, which only lists quizzes you can see; null if the page couldn't be read. */
+  listed?: boolean | null;
 };
 
 /** A Quizzes tool quiz, as stored. `dueAt`: its due date, else when it closes; null if it has neither. */
@@ -41,6 +44,7 @@ export type ToolQuiz = {
   startsAt: number | null;
   dueAt: number | null;
   attempts: number | null;
+  listed: boolean | null;
   url: string;
 };
 
@@ -106,7 +110,8 @@ function isQuiz(q: unknown): q is LmsQuiz {
     dateOrNull(x.startsAt) &&
     dateOrNull(x.endsAt) &&
     dateOrNull(x.dueAt) &&
-    (x.attempts === null || (Number.isSafeInteger(x.attempts) && (x.attempts as number) >= 0))
+    (x.attempts === null || (Number.isSafeInteger(x.attempts) && (x.attempts as number) >= 0)) &&
+    (x.listed === undefined || x.listed === null || typeof x.listed === 'boolean')
   );
 }
 
@@ -117,7 +122,16 @@ export function parseLmsPayload(body: unknown): LmsPayload | null {
   return {
     version: typeof x.version === 'string' ? x.version.slice(0, 20) : '?',
     error: typeof x.error === 'string' && x.error ? x.error.slice(0, 300) : undefined,
-    courses: x.courses.filter(isCourse).slice(0, 40).map((c) => ({ ...c, error: typeof c.error === 'string' ? c.error.slice(0, 200) : undefined })),
+    courses: x.courses
+      .filter(isCourse)
+      .slice(0, 40)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        ok: c.ok,
+        error: typeof c.error === 'string' ? c.error.slice(0, 200) : undefined,
+        quizzesError: typeof c.quizzesError === 'string' && c.quizzesError ? c.quizzesError.slice(0, 200) : undefined,
+      })),
     posts: x.posts.filter(isPost).slice(0, 600),
     quizzes: Array.isArray(x.quizzes) ? x.quizzes.filter(isQuiz).slice(0, 600) : null,
   };
@@ -180,6 +194,7 @@ function toolQuizzes(quizzes: LmsQuiz[], courseName: string, lmsOrigin: string):
     startsAt: time(q.startsAt),
     dueAt: time(q.dueAt) ?? time(q.endsAt),
     attempts: q.attempts,
+    listed: q.listed ?? null,
     url: `${lmsOrigin}/d2l/lms/quizzing/quizzing.d2l?ou=${q.courseId}&qi=${q.id}`,
   }));
 }
@@ -193,8 +208,8 @@ const stored = (s: Stored | undefined): StoredLmsQuizzes => {
 
 /**
  * Saves the quizzes in a run's posts and Quizzes tools. A course that couldn't be read keeps what it
- * had, and so does its Quizzes tool when an older extension doesn't read it; courses the extension no
- * longer reads (last semester's) are dropped.
+ * had, and so does its Quizzes tool when that alone failed or an older extension doesn't read it;
+ * courses the extension no longer reads (last semester's) are dropped.
  */
 export async function saveLmsQuizzes(payload: LmsPayload, lmsOrigin: string, now = Date.now()): Promise<StoredLmsQuizzes> {
   const previous = ((await storeDoc().get()).data() as Stored | undefined)?.courses ?? {};
@@ -210,7 +225,8 @@ export async function saveLmsQuizzes(payload: LmsPayload, lmsOrigin: string, now
       name: c.name,
       // Quizzes long past are of no use; keeping a month of them stops an old one coming back as new.
       quizzes: quizzesInPosts(posts, c.name, lmsOrigin).filter((q) => q.dueAt > now - 30 * 86_400_000),
-      tool: payload.quizzes ? toolQuizzes(payload.quizzes.filter((q) => q.courseId === c.id), c.name, lmsOrigin) : (before?.tool ?? []),
+      tool:
+        payload.quizzes && !c.quizzesError ? toolQuizzes(payload.quizzes.filter((q) => q.courseId === c.id), c.name, lmsOrigin) : (before?.tool ?? []),
     };
   }
   await storeDoc().set({ courses });
@@ -234,14 +250,15 @@ const attempted = (q: ToolQuiz | undefined) => (q?.attempts ?? 0) > 0;
  * - A quiz's start from the Quizzes tool, when the calendar only says when it closes ("Quiz 2, Due
  *   8:30 PM"); failing that, from a post's "8PM-8:30PM" on the same day.
  * - Done, once you've attempted it (its Quizzes page reads "1 / 1").
- * - Quizzes tool quizzes the calendar doesn't show at all (no due date, dates hidden from it).
+ * - Quizzes tool quizzes the calendar doesn't show at all (no due date, dates hidden from it), if
+ *   they're on your Quizzes page: the tool also lists quizzes meant for other sections.
  * - Quizzes only announced in posts. One that's also a quiz above (same course, same day) is left to it.
  */
 export function mergeLmsQuizzes(calendar: RawTask[], posted: PostQuiz[], tool: ToolQuiz[] = []): RawTask[] {
   const fromTool = new Map(tool.map((q) => [toolKey(q), q]));
   const inCalendar = new Set(calendar.map((t) => t.externalId));
   const hidden = tool
-    .filter((q) => q.active && q.dueAt !== null && !inCalendar.has(toolKey(q)))
+    .filter((q) => q.active && q.listed === true && q.dueAt !== null && !inCalendar.has(toolKey(q)))
     .map((q): RawTask => ({ source: 'manipal', externalId: toolKey(q), course: q.course, title: q.name, type: 'quiz', dueAt: new Date(q.dueAt!), opensAt: null, url: q.url }));
   const quizzes = [...calendar, ...hidden];
 
@@ -277,7 +294,7 @@ export function mergeLmsQuizzes(calendar: RawTask[], posted: PostQuiz[], tool: T
 /** Upcoming LMS quizzes, for the extension's popup: the Quizzes tool's, and those only announced in posts. */
 export function upcomingLmsQuizzes({ posted, tool }: StoredLmsQuizzes, now: number) {
   const fromTool = tool
-    .filter((q) => q.active && q.dueAt !== null && q.dueAt > now)
+    .filter((q) => q.active && q.listed === true && q.dueAt !== null && q.dueAt > now)
     .map((q) => ({ course: q.course, title: q.name, startsAt: q.startsAt, dueAt: q.dueAt!, url: q.url, done: attempted(q) }));
   const fromPosts = posted
     .filter((p) => p.dueAt > now && !fromTool.some((q) => sameCourse(q.course, p.course) && istDayNumber(q.dueAt) === istDayNumber(p.dueAt)))

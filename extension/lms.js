@@ -109,20 +109,28 @@ async function coursePosts(course, token, get) {
 const tagless = (html) => html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
- * Your attempts at each quiz, from the course's Quizzes page: its Attempts column reads "1 / 1"
- * (attempts made / allowed). Keyed by quiz id. The page is plain HTML, read with patterns since
- * the extension's background has no HTML parser.
+ * The course's Quizzes page, which lists only the quizzes you can see: your attempts at each (its
+ * Attempts column reads "1 / 1", attempts made / allowed), keyed by quiz id, and whether a quiz is
+ * on the page at all. A quiz that hasn't opened yet may have no link, so it's also found by its
+ * name. The page is plain HTML, read with patterns since the extension's background has no HTML parser.
  */
-function attemptsOnQuizzesPage(html) {
+function readQuizzesPage(html) {
   const attempts = {};
+  const ids = new Set();
+  const names = [];
   for (const row of html.split(/<tr[\s>]/i).slice(1)) {
-    const id = /GoToQuiz\((\d+)/.exec(row)?.[1];
+    const body = row.split(/<\/tr>/i)[0];
+    const cells = [...body.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
+    if (cells.length === 0) continue; // a heading row
+    names.push(tagless(cells[0][1]));
+    const id = /GoToQuiz\((\d+)/.exec(body)?.[1] ?? /[?&;]qi=(\d+)/.exec(body)?.[1];
     if (!id) continue;
-    const cells = [...row.split(/<\/tr>/i)[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)];
-    const made = /^(\d+)\s*\//.exec(tagless(cells.at(-1)?.[1] ?? ''))?.[1];
+    ids.add(id);
+    const made = /^(\d+)\s*\//.exec(tagless(cells.at(-1)[1]))?.[1];
     if (made !== undefined) attempts[id] = Number(made);
   }
-  return attempts;
+  const listed = (id, name) => ids.has(id) || (name !== '' && names.some((n) => n.startsWith(name)));
+  return { attempts, listed };
 }
 
 /**
@@ -144,24 +152,31 @@ async function courseQuizzes(course, get) {
 
   const page = await get(`${LMS}/d2l/lms/quizzing/user/quizzes_list.d2l?ou=${course.id}`);
   if (isLogin(page)) throw new LmsSignedOut();
-  const attempts = page.status === 200 ? attemptsOnQuizzesPage(page.text) : {};
+  // Without the page, attempts and what you can see are unknown (null), not "none".
+  const seen = page.status === 200 ? readQuizzesPage(page.text) : null;
   return list
     .filter((q) => Number.isSafeInteger(q?.QuizId))
-    .map((q) => ({
-      courseId: course.id,
-      id: String(q.QuizId),
-      name: String(q.Name ?? '').trim().slice(0, 300),
-      active: q.IsActive !== false,
-      startsAt: q.StartDate ?? null,
-      endsAt: q.EndDate ?? null,
-      dueAt: q.DueDate ?? null,
-      attempts: attempts[q.QuizId] ?? null,
-    }));
+    .map((q) => {
+      const id = String(q.QuizId);
+      const name = String(q.Name ?? '').trim().slice(0, 300);
+      return {
+        courseId: course.id,
+        id,
+        name,
+        active: q.IsActive !== false,
+        startsAt: q.StartDate ?? null,
+        endsAt: q.EndDate ?? null,
+        dueAt: q.DueDate ?? null,
+        attempts: seen?.attempts[id] ?? null,
+        listed: seen ? seen.listed(id, name) : null,
+      };
+    });
 }
 
 /**
  * Every current course's posts and quizzes. A course that fails is reported and the rest still go;
- * being signed out stops the whole run, since every course would fail the same way.
+ * a course whose quizzes fail still sends its posts (`quizzesError` says why). Being signed out
+ * stops the whole run, since every course would fail the same way.
  */
 export async function readLms({ get = request, now = Date.now() } = {}) {
   try {
@@ -171,11 +186,15 @@ export async function readLms({ get = request, now = Date.now() } = {}) {
     const quizzes = [];
     for (const course of await myCourses(get, now)) {
       try {
-        const coursePostList = await coursePosts(course, token, get);
-        const courseQuizList = await courseQuizzes(course, get);
-        posts.push(...coursePostList);
-        quizzes.push(...courseQuizList);
-        courses.push({ ...course, ok: true });
+        posts.push(...(await coursePosts(course, token, get)));
+        let quizzesError;
+        try {
+          quizzes.push(...(await courseQuizzes(course, get)));
+        } catch (err) {
+          if (err instanceof LmsSignedOut) throw err;
+          quizzesError = describe(err);
+        }
+        courses.push({ ...course, ok: true, ...(quizzesError ? { quizzesError } : {}) });
       } catch (err) {
         if (err instanceof LmsSignedOut) throw err;
         courses.push({ ...course, ok: false, error: describe(err) });

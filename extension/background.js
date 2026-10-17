@@ -193,8 +193,17 @@ async function runLms(reason) {
   }
 
   const failed = read.courses.filter((c) => !c.ok);
-  const ok = !read.error && failed.length === 0 && posted.ok;
-  const message = read.error ?? (failed.length ? `Couldn’t read ${failed.map((c) => c.name).join(', ')}: ${failed[0].error}` : posted.ok ? '' : posted.error);
+  const quizzesFailed = read.courses.filter((c) => c.ok && c.quizzesError);
+  const ok = !read.error && failed.length === 0 && quizzesFailed.length === 0 && posted.ok;
+  const message =
+    read.error ??
+    (failed.length
+      ? `Couldn’t read ${failed.map((c) => c.name).join(', ')}: ${failed[0].error}`
+      : quizzesFailed.length
+        ? `Couldn’t read the quizzes in ${quizzesFailed.map((c) => c.name).join(', ')}: ${quizzesFailed[0].quizzesError}`
+        : posted.ok
+          ? ''
+          : posted.error);
   const { lmsState: previous } = await store.get('lmsState');
   return finishLms({
     at,

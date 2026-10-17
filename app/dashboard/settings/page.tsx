@@ -12,7 +12,7 @@ import { Panel } from '@/components/app/ui';
 import { nptelKey } from '@/lib/auth';
 import { countDevices } from '@/lib/push';
 import { lastReminderCheck } from '@/lib/catch-up';
-import { nptelHealth } from '@/lib/source-health';
+import { extensionUpdate, nptelHealth } from '@/lib/source-health';
 import { getSyncStatus } from '@/lib/sync';
 import { formatIST } from '@/lib/time';
 import { lockAction } from '../actions';
@@ -66,10 +66,13 @@ export default async function SettingsPage() {
                   <p className="text-[13px] text-ink-3">Checked every hour, across all your courses.</p>
                   <p className={`mt-1.5 text-[13px] ${posts?.ok === false ? 'text-red' : 'text-ink-2'}`}>
                     {posts
-                      ? `Quiz posts: checked ${formatIST(posts.at)}. ${posts.message.replace(/\.$/, '')}.`
-                      : 'Quiz posts: not checked yet. Update the Lume extension in Chrome (under NPTEL below).'}
+                      ? `Quizzes: checked ${formatIST(posts.at)}. ${posts.message.replace(/\.$/, '')}.`
+                      : 'Quizzes: not checked yet. Update the Lume extension in Chrome (under NPTEL below).'}
                   </p>
-                  <p className="text-[13px] text-ink-3">Quizzes teachers only announce in a course’s Activity Feed or Announcements, read by the Lume extension in Chrome every 3 hours.</p>
+                  {extensionUpdate(posts) && <p className="text-[13px] font-medium text-orange">{extensionUpdate(posts)}</p>}
+                  <p className="text-[13px] text-ink-3">
+                    Read by the Lume extension in Chrome every hour, and right after you submit a quiz: when each quiz starts, whether you’ve attempted it, and quizzes teachers only announce in a course’s posts.
+                  </p>
                 </div>
               </li>
               <NptelSource health={nptelHealth(nptel, Date.now())} at={nptel?.at ?? null} message={nptel?.message ?? null} code={`${origin}#${nptelKey()}`} />

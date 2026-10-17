@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   // The run failed as a whole (signed out of the LMS): the quizzes found before stay as they are.
   if (payload.error) {
-    await setSyncStatus('manipal-posts', { at: now, ok: false, message: payload.error, okAt });
+    await setSyncStatus('manipal-posts', { at: now, ok: false, message: payload.error, okAt, version: payload.version });
     catchUpAfterResponse();
     return reply({ ok: false });
   }
@@ -45,13 +45,18 @@ export async function POST(request: Request) {
   const saved = await saveLmsQuizzes(payload, new URL(requireEnv('MUJ_ICS_URL')).origin, now);
   const upcoming = upcomingLmsQuizzes(saved, now);
   const failed = payload.courses.filter((c) => !c.ok);
+  const quizzesFailed = payload.courses.filter((c) => c.ok && c.quizzesError);
+  const ok = failed.length === 0 && quizzesFailed.length === 0;
   await setSyncStatus('manipal-posts', {
     at: now,
-    ok: failed.length === 0,
-    okAt: failed.length === 0 ? now : okAt,
+    ok,
+    okAt: ok ? now : okAt,
+    version: payload.version,
     message: failed.length
       ? `Couldn’t read the posts in ${failed.map((c) => c.name).join(', ')}: ${failed[0].error ?? 'unknown error'}`
-      : `${payload.posts.length} ${payload.posts.length === 1 ? 'post' : 'posts'}${payload.quizzes ? ` and ${payload.quizzes.length} ${payload.quizzes.length === 1 ? 'quiz' : 'quizzes'}` : ''} in ${payload.courses.length} ${payload.courses.length === 1 ? 'course' : 'courses'}, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'}`,
+      : quizzesFailed.length
+        ? `Couldn’t read the quizzes in ${quizzesFailed.map((c) => c.name).join(', ')}: ${quizzesFailed[0].quizzesError}`
+        : `${payload.posts.length} ${payload.posts.length === 1 ? 'post' : 'posts'}${payload.quizzes ? ` and ${payload.quizzes.length} ${payload.quizzes.length === 1 ? 'quiz' : 'quizzes'}` : ''} in ${payload.courses.length} ${payload.courses.length === 1 ? 'course' : 'courses'}, ${upcoming.length} upcoming ${upcoming.length === 1 ? 'quiz' : 'quizzes'}`,
   });
 
   // Straight into the LMS sync, so a new quiz notifies now and an attempted one is ticked now, not at the next hourly sync.

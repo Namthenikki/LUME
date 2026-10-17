@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { memo, useEffect, useRef, useState } from 'react';
 import { countdownTo, sittingStart } from '@/lib/stages';
 import type { TaskView } from '@/lib/tasks';
-import { dayIST, istDayNumber, timeIST } from '@/lib/time';
+import { dayIST, formatIST, istDayNumber, rangeIST, timeIST } from '@/lib/time';
 import { CheckIcon, ClockIcon, OpenIcon } from './icons';
 import { timeLeft } from './time';
 import { SOURCE_TILE, SourceChip, TypeChip } from './ui';
@@ -88,14 +88,18 @@ export const TaskRow = memo(function TaskRow({
             <TypeChip type={task.type} />
             <SourceChip source={task.source} />
             {snoozed && <span className="rounded-full bg-chip px-2 py-0.5 text-[11px] text-ink-2">Snoozed till {timeIST(task.snoozedUntil!)}</span>}
-            {opensLater && <span className="rounded-full bg-chip px-2 py-0.5 text-[11px] text-ink-2">Opens {timeIST(task.opensAt!)}</span>}
+            {opensLater && (
+              <span className="rounded-full bg-chip px-2 py-0.5 text-[11px] text-ink-2">
+                Opens {istDayNumber(task.opensAt!) === istDayNumber(now) ? timeIST(task.opensAt!) : formatIST(task.opensAt!)}
+              </span>
+            )}
             {openNow && <span className="rounded-full bg-green/12 px-2 py-0.5 text-[11px] font-medium text-green">Open now</span>}
           </span>
         </button>
 
         <div className="shrink-0 py-1.5 pr-1 text-right">
           <TimeLeft task={task} renderedAt={now} />
-          <p className="text-[12px] text-ink-3">{start === null ? timeIST(task.dueAt) : `${timeIST(start)} to ${timeIST(task.dueAt)}`}</p>
+          <p className="text-[12px] text-ink-3">{start === null ? timeIST(task.dueAt) : rangeIST(start, task.dueAt)}</p>
           {!sameDay && <p className="text-[12px] text-ink-3">{dayIST(task.dueAt)}</p>}
         </div>
       </div>

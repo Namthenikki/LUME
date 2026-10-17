@@ -42,7 +42,7 @@ export function NptelSource({ health, at, message, code }: { health: Health; at:
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${BADGE[health].className}`}>{BADGE[health].label}</span>
           </p>
           <p className="text-[13px] text-ink-2">{at ? `Last synced ${formatIST(at)}. ${message?.replace(/\.$/, '')}.` : 'Not synced yet.'}</p>
-          <p className="text-[13px] text-ink-3">Synced by the Lume extension in Chrome on your laptop, every 3 hours while Chrome is open.</p>
+          <p className="text-[13px] text-ink-3">Synced by the Lume extension in Chrome on your laptop, every hour while Chrome is open.</p>
         </div>
       </div>
 
