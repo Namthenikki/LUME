@@ -34,6 +34,8 @@ export default async function SettingsPage() {
   ]);
   // The extension's connection code: this app's address and its NPTEL key, pasted in one go.
   const origin = `${head.get('x-forwarded-proto') ?? 'http'}://${head.get('host')}`;
+  // Lume Public's usage page, with its secret key: set in Vercel only, never in the code (this repo is public).
+  const publicStats = process.env.LUME_PUBLIC_STATS_URL?.trim();
 
   return (
     <div className="space-y-5 lg:space-y-6">
@@ -82,6 +84,22 @@ export default async function SettingsPage() {
               </li>
             </ul>
           </Panel>
+
+          {publicStats && (
+            <Panel title="Lume Public">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="min-w-0 flex-1 text-[13px] text-ink-2">How many students use Lume Public: total, active today and this week, and each student’s setup.</p>
+                <a
+                  href={publicStats}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-10 items-center justify-center rounded-[12px] bg-blue px-4 text-[13px] font-semibold text-white shadow-[0_8px_18px_-10px_rgb(29_110_245/0.8)]"
+                >
+                  See usage
+                </a>
+              </div>
+            </Panel>
+          )}
 
           <Panel title="Lock">
             <form action={lockAction} className="flex flex-wrap items-center justify-between gap-3">
